@@ -717,7 +717,7 @@ let visibleRooms  = new Set(['OR1','OR2','OR3','OR4','OR5','OR6','OR7']);
 let surgeonFilter = '';
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS37qXXgmgnxiwysUOtRxMJHCVxXbU9zSwH95n3FGnBEes8vxPdhomNctvS7pxSe7jcQxtW-_JxMbU7/pub?gid=0&single=true&output=csv';
 let sheetUrl      = localStorage.getItem('sheetUrl')  || DEFAULT_SHEET_URL;
-let pollIntervalS = parseInt(localStorage.getItem('pollInterval') || '15');
+let pollIntervalS = parseInt(localStorage.getItem('pollInterval') || '5');
 let doctors       = [];   // global doctor list, persisted in localStorage
 let selectedDate  = '';   // YYYY-MM-DD
 let dateDataStore = {};   // {YYYY-MM-DD: serialized rooms}
@@ -906,8 +906,23 @@ function mergeSheetData(rows){
 async function fetchSheet(url){
   if(!url) return;
   setSyncState('loading');
+  // ── Fast path: ดึงจาก Apps Script GET (ไม่มี cache) ──
+  if(writeUrl){
+    try{
+      const resp=await fetch(writeUrl+'?action=getData&_='+Date.now(),{cache:'no-store'});
+      if(!resp.ok) throw new Error('HTTP '+resp.status);
+      const j=await resp.json();
+      if(j.ok && Array.isArray(j.rows)){
+        mergeSheetData(j.rows);
+        lastSyncTime=new Date(); setSyncState('live');
+        buildTicker(); renderAll();
+        return;
+      }
+    }catch(e){ console.warn('Apps Script GET:',e); }
+  }
+  // ── Fallback: Published CSV (cache ~1–5 min) ──
+  if(!url) return;
   try{
-    // cache-buster กัน CSV ที่ Google publish-to-web cache ไว้ (มักหน่วงหลายนาที)
     const bust=(url.includes('?')?'&':'?')+'_='+Date.now();
     const resp=await fetch(url+bust,{cache:'no-store'});
     if(!resp.ok) throw new Error('HTTP '+resp.status);
@@ -915,7 +930,7 @@ async function fetchSheet(url){
     mergeSheetData(parseCSV(csv));
     lastSyncTime=new Date(); setSyncState('live');
     buildTicker(); renderAll();
-  }catch(e){ console.warn('Sheet fetch:',e); setSyncState('error'); }
+  }catch(e){ console.warn('CSV fetch:',e); setSyncState('error'); }
 }
 function setSyncState(state){
   syncState=state;
