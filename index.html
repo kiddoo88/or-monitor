@@ -1233,8 +1233,10 @@ function renderQueueDash(){
   if(qViewMode==='surgeon'){ renderQueueBySurgeon(grid,filtered); return; }
 
   grid.innerHTML=filtered.map(r=>{
-    const dm=DEPT_META[r.dept]||DEPT_META.flexible;
     const cur=r.current; const waiting=r.waiting||[]; const done=(r.completed||[]).length;
+    // สีตาม dept ของเคสที่ทำอยู่ → คิวถัดไป → flexible (ถ้าว่าง)
+    const effectiveDept = cur ? r.dept : (waiting.length ? r.dept : 'flexible');
+    const dm=DEPT_META[effectiveDept]||DEPT_META.flexible;
     const pct=cur?progress(cur.start,cur.end):0;
     const el=cur?elapsed(cur.start):'';
     const localMark=localEdits[r.id]?`<span class="local-badge">★ local</span>`:'';
