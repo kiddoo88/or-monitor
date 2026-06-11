@@ -630,6 +630,16 @@ header{display:flex;align-items:center;justify-content:space-between;
       </div>
     </div>
     <div class="test-result" id="testResult"></div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+      <div class="sheet-hint" style="margin-bottom:10px;">
+        <strong>✏️ Write-back (เขียนกลับ Sheet):</strong> ใส่ URL จาก <strong>Google Apps Script</strong> เพื่อให้แอปส่งข้อมูลคนไข้กลับเข้า Sheet เมื่อ add/edit/delete<br>
+        <span style="opacity:.7">ดูวิธี deploy Apps Script ได้ในเอกสาร setup</span>
+      </div>
+      <div class="form-group">
+        <label>Apps Script Write URL</label>
+        <input id="writeUrlInput" type="url" placeholder="https://script.google.com/macros/s/.../exec">
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('settingsModal')">ยกเลิก</button>
       <button class="btn btn-primary" onclick="saveSettings()">บันทึก</button>
@@ -687,6 +697,8 @@ let pollIntervalS = parseInt(localStorage.getItem('pollInterval') || '15');
 let doctors       = [];   // global doctor list, persisted in localStorage
 let selectedDate  = '';   // YYYY-MM-DD
 let dateDataStore = {};   // {YYYY-MM-DD: serialized rooms}
+const DEFAULT_WRITE_URL = 'https://script.google.com/macros/s/AKfycbykjgJIp3ufhdP7J_wFQXe5RUta5kuU3H--99h6tWueMQt6rQ4A5IuglywfYCN7O_7A/exec';
+let writeUrl = localStorage.getItem('writeUrl') || DEFAULT_WRITE_URL;
 
 // ══════════════════════════════════════════════
 // DEPT META & DATA
@@ -918,6 +930,7 @@ function lock(){
 function openSettings(){
   document.getElementById('sheetUrlInput').value=sheetUrl;
   document.getElementById('pollIntervalInput').value=String(pollIntervalS);
+  document.getElementById('writeUrlInput').value=writeUrl;
   document.getElementById('testResult').style.display='none';
   openModal('settingsModal');
 }
@@ -945,9 +958,29 @@ function clearLocalEditsForNewDay(){
 function saveSettings(){
   sheetUrl=document.getElementById('sheetUrlInput').value.trim();
   pollIntervalS=parseInt(document.getElementById('pollIntervalInput').value)||15;
+  writeUrl=document.getElementById('writeUrlInput').value.trim();
   localStorage.setItem('sheetUrl',sheetUrl); localStorage.setItem('pollInterval',String(pollIntervalS));
+  localStorage.setItem('writeUrl',writeUrl);
   closeModal('settingsModal');
   if(sheetUrl) startPolling(); else setSyncState('off');
+}
+
+// ══════════════════════════════════════════════
+// SHEET WRITE-BACK
+// ══════════════════════════════════════════════
+function syncToSheet(action, data) {
+  if(!writeUrl) return;
+  // use no-cors so file:// origin works; fire-and-forget
+  fetch(writeUrl, {method:'POST', mode:'no-cors', body:JSON.stringify({action,...data})}).catch(()=>{});
+}
+function patientSheetRow(p, room, order) {
+  const rm = rooms.find(r=>r.id===room)||{};
+  return {
+    room, dept:rm.dept||'', doctor:p.surgeon||rm.doctor||'', status:rm.status||'',
+    type:'waiting', order,
+    name:p.name, hn:p.hn, age:p.age||'', anesthesia:p.anesthesia||'',
+    proc:p.proc, timeStart:'', timeEnd:'', note:p.note||''
+  };
 }
 
 // ══════════════════════════════════════════════
@@ -1415,18 +1448,33 @@ function saveQueueEdit(){
   if(!tgt.waiting) tgt.waiting=[];
   tgt.waiting.splice(Math.max(0,Math.min(order-1,tgt.waiting.length)),0,p);
   localEdits[newRoom]=true;
+  // sync to sheet
+  const _tgt2=rooms.find(r=>r.id===newRoom);
+  const _finalIdx=_tgt2.waiting.findIndex(x=>x===p);
+  const _ord=_finalIdx>=0?_finalIdx+1:order;
+  if(isNew){
+    syncToSheet('append', patientSheetRow(p, newRoom, _ord));
+  } else {
+    syncToSheet('update', {...patientSheetRow(p, newRoom, _ord), oldRoom:roomId, oldHn:p.hn});
+  }
   closeModal('qEditModal'); saveCurrentDateData(); buildTicker(); renderAll();
 }
 function confirmDeleteQ(roomId,idx,evt){
   evt&&evt.stopPropagation();
   if(!confirm('ลบผู้ป่วยออกจากคิว?')) return;
-  rooms.find(x=>x.id===roomId).waiting.splice(idx,1);
+  const _dq=rooms.find(x=>x.id===roomId);
+  const _dp=_dq.waiting[idx];
+  syncToSheet('delete',{room:roomId, hn:_dp?_dp.hn:'', type:'waiting'});
+  _dq.waiting.splice(idx,1);
   localEdits[roomId]=true; buildTicker(); renderAll();
 }
 function deleteQueueItem(){
   if(!confirm('ลบผู้ป่วยออกจากคิว?')) return;
   const{roomId,idx}=qEditContext;
-  rooms.find(x=>x.id===roomId).waiting.splice(idx,1);
+  const _dqi=rooms.find(x=>x.id===roomId);
+  const _dqp=_dqi.waiting[idx];
+  syncToSheet('delete',{room:roomId, hn:_dqp?_dqp.hn:'', type:'waiting'});
+  _dqi.waiting.splice(idx,1);
   localEdits[roomId]=true;
   closeModal('qEditModal'); buildTicker(); renderAll();
 }
