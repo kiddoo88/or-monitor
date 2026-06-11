@@ -556,11 +556,19 @@ body.kiosk #lockBtn, body.kiosk header .icon-btn[onclick*="openSettings"]{displa
     <div class="form-row">
       <div class="form-group">
         <label>เวลาเริ่ม</label>
-        <input id="pmStart" type="time">
+        <input id="pmStart" type="time" oninput="recalcPromoteEnd()">
       </div>
       <div class="form-group">
         <label>เวลาสิ้นสุด (คาด)</label>
-        <input id="pmEnd" type="time">
+        <input id="pmEnd" type="time" style="opacity:.7">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>ระยะเวลา operation</label>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button type="button" class="btn btn-secondary" style="padding:6px 14px;font-size:.85rem;" onclick="changeDur(-30)">− 30 นาที</button>
+        <span id="pmDurLabel" style="font-size:1rem;font-weight:700;min-width:70px;text-align:center;color:var(--accent)">60 นาที</span>
+        <button type="button" class="btn btn-secondary" style="padding:6px 14px;font-size:.85rem;" onclick="changeDur(30)">+ 30 นาที</button>
       </div>
     </div>
     <div class="modal-actions">
@@ -1096,6 +1104,22 @@ function setView(mode){
 // ══════════════════════════════════════════════
 // PROMOTE TO OR
 // ══════════════════════════════════════════════
+let promDurMin=60;
+function recalcPromoteEnd(){
+  const start=document.getElementById('pmStart').value;
+  const lbl=document.getElementById('pmDurLabel');
+  if(lbl) lbl.textContent=promDurMin+' นาที';
+  if(!start) return;
+  const [h,m]=start.split(':').map(Number);
+  const endMin=(h*60+m+promDurMin)%1440;
+  const eh=String(Math.floor(endMin/60)).padStart(2,'0');
+  const em=String(endMin%60).padStart(2,'0');
+  document.getElementById('pmEnd').value=`${eh}:${em}`;
+}
+function changeDur(delta){
+  promDurMin=Math.max(30,promDurMin+delta);
+  recalcPromoteEnd();
+}
 function openPromote(fromRoomId, waitingIdx, evt){
   evt&&evt.stopPropagation();
   requireUnlock(()=>{
@@ -1106,7 +1130,8 @@ function openPromote(fromRoomId, waitingIdx, evt){
     document.getElementById('pmPatient').textContent=`${p.name}  ·  ${p.hn}${p.note?' · ⚠ '+p.note:''}`;
     document.getElementById('pmRoom').value=fromRoomId;
     document.getElementById('pmStart').value=nowHHMM();
-    document.getElementById('pmEnd').value='';
+    promDurMin=60;
+    recalcPromoteEnd();
     updatePromoteWarn();
     openModal('promoteModal');
   });
@@ -1241,11 +1266,11 @@ function renderQueueDash(){
           </div>
           ${p.surgeon?`<div class="qrow-surgeon">👨‍⚕️ ${p.surgeon}</div>`:''}
           <div class="qrow-btns">
-            ${isUnlocked?`<button class="promote-btn" onclick="openPromote('${r.id}',${i},event)">▲ ขึ้นโต๊ะ</button>`:''}
             ${isUnlocked?`<div class="qrow-edit-btns">
               <button class="qrow-btn" onclick="openQEdit('${r.id}',${i},event)">✏️</button>
               <button class="qrow-btn del" onclick="confirmDeleteQ('${r.id}',${i},event)">✕</button>
             </div>`:''}
+            ${isUnlocked?`<button class="promote-btn" onclick="openPromote('${r.id}',${i},event)">▲ ขึ้นโต๊ะ</button>`:''}
           </div>
         </div>
         ${i<n-1?'<div class="qdivider"></div>':''}
