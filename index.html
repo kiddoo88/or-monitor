@@ -577,6 +577,10 @@ header{display:flex;align-items:center;justify-content:space-between;
       <div class="form-group"><label>ชื่อผู้ป่วย</label><input id="qfName" type="text"></div>
       <div class="form-group"><label>HN</label><input id="qfHN" type="text"></div>
     </div>
+    <div class="form-row">
+      <div class="form-group"><label>อายุ (ปี)</label><input id="qfAge" type="number" min="0" max="150" placeholder="เช่น 45"></div>
+      <div class="form-group"><label>Anesthesia</label><select id="qfAnesthesia"><option value="">(ไม่ระบุ)</option><option value="GA">GA</option><option value="TIVA">TIVA</option><option value="SB">SB</option><option value="RB">RB</option><option value="LA">LA</option><option value="MAC">MAC</option></select></div>
+    </div>
     <div class="form-group"><label>หัตถการ</label><input id="qfProc" type="text"></div>
     <div class="form-group">
       <label>ศัลยแพทย์</label>
@@ -603,7 +607,7 @@ header{display:flex;align-items:center;justify-content:space-between;
     <div class="sheet-hint">
       <strong>วิธีเชื่อมต่อ:</strong> File → Share → <strong>Publish to web</strong> → CSV → คัดลอก URL<br><br>
       <strong>คอลัมน์ (row 1 = header):</strong><br>
-      <code>ห้อง | แผนก | แพทย์ | สถานะห้อง | ประเภท | ลำดับ | ชื่อผู้ป่วย | HN | หัตถการ | เวลาเริ่ม | เวลาสิ้นสุด | หมายเหตุ</code><br>
+      <code>ห้อง | แผนก | แพทย์ | สถานะห้อง | ประเภท | ลำดับ | ชื่อผู้ป่วย | HN | อายุ | Anesthesia | หัตถการ | เวลาเริ่ม | เวลาสิ้นสุด | หมายเหตุ</code><br>
       <strong>ประเภท:</strong> <code>current</code> / <code>waiting</code> / <code>done</code>
     </div>
     <div class="form-group">
@@ -703,8 +707,8 @@ let rooms = [
   { id:'OR1', dept:'obs-gyne', doctor:'พญ.ภาวัช', status:'active',
     current:{ name:'คุณจิราพร สุขสม', hn:'HN-2406001', proc:'Cesarean Section', start:minsAgo(72), end:minsLater(48), note:'' },
     waiting:[
-      { name:'คุณสุนิสา มาลัย',  hn:'HN-2406021', proc:'Hysteroscopy',  note:'', surgeon:'พญ.ภาวัช' },
-      { name:'คุณรัตนา ดีใจ',    hn:'HN-2406034', proc:'D&C',           note:'NPO ครบ', surgeon:'พญ.ภาวัช' },
+      { name:'คุณสุนิสา มาลัย',  hn:'HN-2406021', proc:'Hysteroscopy',  note:'', surgeon:'พญ.ภาวัช', age:32, anesthesia:'GA' },
+      { name:'คุณรัตนา ดีใจ',    hn:'HN-2406034', proc:'D&C',           note:'NPO ครบ', surgeon:'พญ.ภาวัช', age:28, anesthesia:'SB' },
     ],
     completed:[
       { name:'คุณวรรณา สวัสดี',  hn:'HN-2406009', proc:'LSCS', startedAt:hoursAgo(4,30), endedAt:hoursAgo(3), note:'' },
@@ -713,9 +717,9 @@ let rooms = [
   { id:'OR2', dept:'surg', doctor:'นพ.ศิวทัต ก้องเกียรติ', status:'active',
     current:{ name:'คุณสมชาย ใจดี', hn:'HN-2406002', proc:'Open Cholecystectomy', start:minsAgo(38), end:minsLater(85), note:'' },
     waiting:[
-      { name:'คุณประทีป บุญมี',  hn:'HN-2406022', proc:'Inguinal Hernia Repair', note:'', surgeon:'นพ.ศิวทัต ก้องเกียรติ' },
-      { name:'คุณวินัย สุขใจ',   hn:'HN-2406035', proc:'Appendectomy',           note:'Acute', surgeon:'นพ.ศิวทัต ก้องเกียรติ' },
-      { name:'คุณมนัส ยอดดี',    hn:'HN-2406048', proc:'Lap Chole',              note:'', surgeon:'นพ.ศิวทัต ก้องเกียรติ' },
+      { name:'คุณประทีป บุญมี',  hn:'HN-2406022', proc:'Inguinal Hernia Repair', note:'', surgeon:'นพ.ศิวทัต ก้องเกียรติ', age:55, anesthesia:'SB' },
+      { name:'คุณวินัย สุขใจ',   hn:'HN-2406035', proc:'Appendectomy',           note:'Acute', surgeon:'นพ.ศิวทัต ก้องเกียรติ', age:23, anesthesia:'GA' },
+      { name:'คุณมนัส ยอดดี',    hn:'HN-2406048', proc:'Lap Chole',              note:'', surgeon:'นพ.ศิวทัต ก้องเกียรติ', age:47, anesthesia:'GA' },
     ],
     completed:[
       { name:'คุณอนันต์ แก้วดี', hn:'HN-2406010', proc:'Colostomy',    startedAt:hoursAgo(5), endedAt:hoursAgo(3,30), note:'' },
@@ -725,8 +729,8 @@ let rooms = [
   { id:'OR3', dept:'surg', doctor:'พญ.ณัฐพร วิชณะ', status:'turnover',
     current:null,
     waiting:[
-      { name:'คุณกมล ศรีสุข',  hn:'HN-2406023', proc:'Lap Chole',     note:'เตรียมพร้อม', surgeon:'พญ.ณัฐพร วิชณะ' },
-      { name:'คุณสุภาพ ดีงาม', hn:'HN-2406036', proc:'Thyroidectomy', note:'', surgeon:'พญ.ณัฐพร วิชณะ' },
+      { name:'คุณกมล ศรีสุข',  hn:'HN-2406023', proc:'Lap Chole',     note:'เตรียมพร้อม', surgeon:'พญ.ณัฐพร วิชณะ', age:61, anesthesia:'GA' },
+      { name:'คุณสุภาพ ดีงาม', hn:'HN-2406036', proc:'Thyroidectomy', note:'', surgeon:'พญ.ณัฐพร วิชณะ', age:44, anesthesia:'GA' },
     ],
     completed:[
       { name:'คุณสมศรี ใสสะอาด', hn:'HN-2406012', proc:'Mastectomy', startedAt:hoursAgo(3), endedAt:hoursAgo(1,10), note:'' },
@@ -735,10 +739,10 @@ let rooms = [
   { id:'OR4', dept:'eye', doctor:'พญ.จอมขวัญ อภิชญา', status:'active',
     current:{ name:'คุณวิภา มีสุข', hn:'HN-2406004', proc:'Phacoemulsification L', start:minsAgo(25), end:minsLater(35), note:'' },
     waiting:[
-      { name:'คุณสมหมาย ดีจริง', hn:'HN-2406024', proc:'Phacoemulsification R', note:'', surgeon:'พญ.จอมขวัญ อภิชญา' },
-      { name:'คุณนงนุช แจ่มใส',  hn:'HN-2406037', proc:'Trabeculectomy',        note:'Glaucoma', surgeon:'พญ.จอมขวัญ อภิชญา' },
-      { name:'คุณเฉลิม ยิ้มแย้ม', hn:'HN-2406049', proc:'Phaco R',              note:'', surgeon:'พญ.จอมขวัญ อภิชญา' },
-      { name:'คุณสาวิตรี สดใส',   hn:'HN-2406055', proc:'Phaco L',              note:'', surgeon:'พญ.จอมขวัญ อภิชญา' },
+      { name:'คุณสมหมาย ดีจริง', hn:'HN-2406024', proc:'Phacoemulsification R', note:'', surgeon:'พญ.จอมขวัญ อภิชญา', age:68, anesthesia:'LA' },
+      { name:'คุณนงนุช แจ่มใส',  hn:'HN-2406037', proc:'Trabeculectomy',        note:'Glaucoma', surgeon:'พญ.จอมขวัญ อภิชญา', age:72, anesthesia:'LA' },
+      { name:'คุณเฉลิม ยิ้มแย้ม', hn:'HN-2406049', proc:'Phaco R',              note:'', surgeon:'พญ.จอมขวัญ อภิชญา', age:75, anesthesia:'LA' },
+      { name:'คุณสาวิตรี สดใส',   hn:'HN-2406055', proc:'Phaco L',              note:'', surgeon:'พญ.จอมขวัญ อภิชญา', age:70, anesthesia:'LA' },
     ],
     completed:[
       { name:'คุณบุญมา หน้าใส', hn:'HN-2406013', proc:'Phaco R', startedAt:hoursAgo(2,40), endedAt:hoursAgo(2,10), note:'' },
@@ -749,7 +753,7 @@ let rooms = [
   { id:'OR6', dept:'ortho', doctor:'นพ.พงษ์พันธุ์', status:'active',
     current:{ name:'คุณธนกร รักดี', hn:'HN-2406006', proc:'TKR Left', start:minsAgo(110), end:minsLater(30), note:'' },
     waiting:[
-      { name:'คุณประสงค์ มั่นคง', hn:'HN-2406025', proc:'Hip Arthroplasty', note:'ผ่าตัดใหญ่', surgeon:'นพ.พงษ์พันธุ์' },
+      { name:'คุณประสงค์ มั่นคง', hn:'HN-2406025', proc:'Hip Arthroplasty', note:'ผ่าตัดใหญ่', surgeon:'นพ.พงษ์พันธุ์', age:64, anesthesia:'SB' },
     ],
     completed:[
       { name:'คุณสมหวัง แกร่งกล้า', hn:'HN-2406015', proc:'ORIF Femur', startedAt:hoursAgo(5,30), endedAt:hoursAgo(3), note:'' },
@@ -758,8 +762,8 @@ let rooms = [
   { id:'OR7', dept:'ent', doctor:'พญ.ณัฐธิดา โลสกณ', status:'active',
     current:{ name:'คุณมาลี สดใส', hn:'HN-2406007', proc:'FESS', start:minsAgo(50), end:minsLater(40), note:'GA' },
     waiting:[
-      { name:'คุณสุรพงษ์ ไกรลาส', hn:'HN-2406026', proc:'Tonsillectomy', note:'', surgeon:'พญ.ณัฐธิดา โลสกณ' },
-      { name:'คุณอรุณี แสงใส',     hn:'HN-2406038', proc:'Septoplasty',   note:'', surgeon:'พญ.ณัฐธิดา โลสกณ' },
+      { name:'คุณสุรพงษ์ ไกรลาส', hn:'HN-2406026', proc:'Tonsillectomy', note:'', surgeon:'พญ.ณัฐธิดา โลสกณ', age:18, anesthesia:'GA' },
+      { name:'คุณอรุณี แสงใส',     hn:'HN-2406038', proc:'Septoplasty',   note:'', surgeon:'พญ.ณัฐธิดา โลสกณ', age:35, anesthesia:'GA' },
     ],
     completed:[
       { name:'คุณธีรศักดิ์ แน่นหนา', hn:'HN-2406017', proc:'Myringoplasty', startedAt:hoursAgo(3,10), endedAt:hoursAgo(2,20), note:'' },
@@ -837,7 +841,7 @@ function mergeSheetData(rows){
     }
     rm.waiting=rr.filter(r=>r['ประเภท']==='waiting')
       .sort((a,b)=>(+a['ลำดับ']||99)-(+b['ลำดับ']||99))
-      .map(r=>({name:r['ชื่อผู้ป่วย']||'',hn:r['HN']||'',proc:r['หัตถการ']||'',note:r['หมายเหตุ']||''}));
+      .map(r=>({name:r['ชื่อผู้ป่วย']||'',hn:r['HN']||'',proc:r['หัตถการ']||'',note:r['หมายเหตุ']||'',age:r['อายุ']?parseInt(r['อายุ']):'',anesthesia:r['Anesthesia']||r['anesthesia']||''}));
     rm.completed=rr.filter(r=>r['ประเภท']==='done')
       .map(r=>({name:r['ชื่อผู้ป่วย']||'',hn:r['HN']||'',proc:r['หัตถการ']||'',
         startedAt:parseTimeStr(r['เวลาเริ่ม']),endedAt:parseTimeStr(r['เวลาสิ้นสุด']),note:r['หมายเหตุ']||''}));
@@ -1117,7 +1121,7 @@ function renderQueueDash(){
           <div class="qrow-num" style="color:${dm.color}">${i+1}</div>
           <div class="qrow-main">
             <div class="qrow-proc">${p.proc}</div>
-            <div class="qrow-sub">${p.name} · <span style="opacity:.6">${p.hn}</span></div>
+            <div class="qrow-sub">${p.name}${p.age?' · อายุ '+p.age+' ปี':''}${p.anesthesia?' · '+p.anesthesia:''} · <span style="opacity:.6">${p.hn}</span></div>
             ${p.note?`<div class="qrow-note">⚠ ${p.note}</div>`:''}
           </div>
           ${p.surgeon?`<div class="qrow-surgeon">👨‍⚕️ ${p.surgeon}</div>`:''}
@@ -1246,7 +1250,7 @@ function buildAllPatients(){
       name:r.current.name,hn:r.current.hn,proc:r.current.proc,doctor:r.doctor,
       startTime:r.current.start,endTime:r.current.end,note:r.current.note});
     (r.waiting||[]).forEach((p,i)=>all.push({type:'waiting',room:r.id,dept:r.dept,color:dm.color,
-      name:p.name,hn:p.hn,proc:p.proc,doctor:r.doctor,startTime:null,endTime:null,note:p.note,queuePos:i+1}));
+      name:p.name,hn:p.hn,proc:p.proc,doctor:r.doctor,startTime:null,endTime:null,note:p.note,age:p.age,anesthesia:p.anesthesia,queuePos:i+1}));
     (r.completed||[]).forEach(p=>all.push({type:'done',room:r.id,dept:r.dept,color:dm.color,
       name:p.name,hn:p.hn,proc:p.proc,doctor:r.doctor,startTime:p.startedAt,endTime:p.endedAt,note:p.note}));
   });
@@ -1289,7 +1293,7 @@ function renderList(){
 }
 function buildTable(rows){
   const cols=[{key:'room',label:'ห้อง'},{key:'dept',label:'แผนก'},{key:'hn',label:'HN'},
-    {key:'name',label:'ชื่อผู้ป่วย'},{key:'proc',label:'หัตถการ'},{key:'doctor',label:'แพทย์'},
+    {key:'name',label:'ชื่อผู้ป่วย'},{key:'age',label:'อายุ'},{key:'anesthesia',label:'Anesthesia'},{key:'proc',label:'หัตถการ'},{key:'doctor',label:'แพทย์'},
     {key:'status',label:'สถานะ'},{key:'time',label:'เวลา'}];
   const thead=`<thead><tr>${cols.map(c=>`<th onclick="sortBy('${c.key}')" class="${sortCol===c.key?'sorted':''}">${c.label}<span class="sort-arrow">${sortCol===c.key?(sortDir>0?'↑':'↓'):'↕'}</span></th>`).join('')}</tr></thead>`;
   let sorted=[...rows].sort((a,b)=>{
@@ -1312,6 +1316,8 @@ function buildTable(rows){
       <td><span class="dept-pill pill-${p.dept}">${dm.label}</span></td>
       <td class="hn-cell">${p.hn}</td>
       <td>${p.name}${p.note?`<div class="note-small">${p.note}</div>`:''}</td>
+      <td class="time-cell" style="color:var(--muted)">${p.age!==undefined&&p.age!==''?p.age+' ปี':'—'}</td>
+      <td class="time-cell">${p.anesthesia||'—'}</td>
       <td class="proc-cell">${p.proc}</td>
       <td class="time-cell">${p.doctor||'—'}</td>
       <td>${stl}</td><td>${tc}</td>
@@ -1336,7 +1342,8 @@ function openQAdd(roomId){
   document.getElementById('qEditTitle').textContent='➕ เพิ่มผู้ป่วยเข้าคิว';
   document.getElementById('qfRoom').value=roomId;
   document.getElementById('qfOrder').value=(r&&r.waiting?r.waiting.length+1:1);
-  ['qfName','qfHN','qfProc','qfNote'].forEach(id=>document.getElementById(id).value='');
+  ['qfName','qfHN','qfProc','qfNote','qfAge'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('qfAnesthesia').value='';
   refreshSurgeonSelect(r&&r.doctor?r.doctor:'');
   document.getElementById('qEditDelBtn').style.display='none';
   openModal('qEditModal');
@@ -1352,6 +1359,8 @@ function openQEdit(roomId,idx,evt){
   document.getElementById('qfHN').value=p.hn;
   document.getElementById('qfProc').value=p.proc;
   document.getElementById('qfNote').value=p.note||'';
+  document.getElementById('qfAge').value=p.age!==undefined&&p.age!==''?p.age:'';
+  document.getElementById('qfAnesthesia').value=p.anesthesia||'';
   refreshSurgeonSelect(p.surgeon||'');
   document.getElementById('qEditDelBtn').style.display='';
   openModal('qEditModal');
@@ -1365,6 +1374,8 @@ function saveQueueEdit(){
     hn:document.getElementById('qfHN').value.trim(),
     proc:document.getElementById('qfProc').value.trim()||'—',
     note:document.getElementById('qfNote').value.trim(),
+    age:document.getElementById('qfAge').value!==''?parseInt(document.getElementById('qfAge').value):'',
+    anesthesia:document.getElementById('qfAnesthesia').value,
     surgeon};
   const src=rooms.find(r=>r.id===roomId);
   if(!isNew){ src.waiting.splice(idx,1); localEdits[roomId]=true; }
