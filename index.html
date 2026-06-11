@@ -1443,11 +1443,11 @@ function saveQueueEdit(){
     anesthesia:document.getElementById('qfAnesthesia').value,
     surgeon};
   const src=rooms.find(r=>r.id===roomId);
-  if(!isNew){ src.waiting.splice(idx,1); localEdits[roomId]=true; }
+  if(!isNew){ src.waiting.splice(idx,1); if(!writeUrl) localEdits[roomId]=true; }
   const tgt=rooms.find(r=>r.id===newRoom);
   if(!tgt.waiting) tgt.waiting=[];
   tgt.waiting.splice(Math.max(0,Math.min(order-1,tgt.waiting.length)),0,p);
-  localEdits[newRoom]=true;
+  if(!writeUrl) localEdits[newRoom]=true;
   // sync to sheet
   const _tgt2=rooms.find(r=>r.id===newRoom);
   const _finalIdx=_tgt2.waiting.findIndex(x=>x===p);
@@ -1457,6 +1457,8 @@ function saveQueueEdit(){
   } else {
     syncToSheet('update', {...patientSheetRow(p, newRoom, _ord), oldRoom:roomId, oldHn:p.hn});
   }
+  // clear localEdits so sheet polling can re-sync after write-back
+  if(writeUrl){ setTimeout(()=>{ delete localEdits[roomId]; delete localEdits[newRoom]; },4000); }
   closeModal('qEditModal'); saveCurrentDateData(); buildTicker(); renderAll();
 }
 function confirmDeleteQ(roomId,idx,evt){
@@ -1466,7 +1468,9 @@ function confirmDeleteQ(roomId,idx,evt){
   const _dp=_dq.waiting[idx];
   syncToSheet('delete',{room:roomId, hn:_dp?_dp.hn:'', type:'waiting'});
   _dq.waiting.splice(idx,1);
-  localEdits[roomId]=true; buildTicker(); renderAll();
+  if(!writeUrl) localEdits[roomId]=true;
+  else setTimeout(()=>{ delete localEdits[roomId]; },4000);
+  buildTicker(); renderAll();
 }
 function deleteQueueItem(){
   if(!confirm('ลบผู้ป่วยออกจากคิว?')) return;
@@ -1475,7 +1479,8 @@ function deleteQueueItem(){
   const _dqp=_dqi.waiting[idx];
   syncToSheet('delete',{room:roomId, hn:_dqp?_dqp.hn:'', type:'waiting'});
   _dqi.waiting.splice(idx,1);
-  localEdits[roomId]=true;
+  if(!writeUrl) localEdits[roomId]=true;
+  else setTimeout(()=>{ delete localEdits[roomId]; },4000);
   closeModal('qEditModal'); buildTicker(); renderAll();
 }
 
