@@ -1241,7 +1241,7 @@ function renderQueueDash(){
           </div>
           ${p.surgeon?`<div class="qrow-surgeon">👨‍⚕️ ${p.surgeon}</div>`:''}
           <div class="qrow-btns">
-            <button class="promote-btn" onclick="openPromote('${r.id}',${i},event)">▲ ขึ้นโต๊ะ</button>
+            ${isUnlocked?`<button class="promote-btn" onclick="openPromote('${r.id}',${i},event)">▲ ขึ้นโต๊ะ</button>`:''}
             ${isUnlocked?`<div class="qrow-edit-btns">
               <button class="qrow-btn" onclick="openQEdit('${r.id}',${i},event)">✏️</button>
               <button class="qrow-btn del" onclick="confirmDeleteQ('${r.id}',${i},event)">✕</button>
@@ -1317,7 +1317,7 @@ function renderQueueBySurgeon(grid,filtered){
       const tl=p.type==='current'?`<span class="sc-type sc-current">● กำลังผ่าตัด</span>`:
         p.type==='waiting'?`<span class="sc-type sc-waiting">🟡 คิว #${p.qpos}</span>`:
         `<span class="sc-type sc-done">✓ เสร็จ</span>`;
-      const promBtn=p.type==='waiting'?`<button class="promote-btn" style="font-size:.65rem;padding:3px 7px;" onclick="openPromote('${p.fromRoom}',${p.idx},event)">▲ ขึ้นโต๊ะ</button>`:'';
+      const promBtn=p.type==='waiting'&&isUnlocked?`<button class="promote-btn" style="font-size:.65rem;padding:3px 7px;" onclick="openPromote('${p.fromRoom}',${p.idx},event)">▲ ขึ้นโต๊ะ</button>`:'';
       return `<tr>
         <td class="sc-num">${p.type==='waiting'?p.qpos:''}</td>
         <td class="sc-room" style="color:${d.color}">${p.room}</td>
