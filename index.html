@@ -1139,7 +1139,7 @@ function renderQueueDash(){
 
     const addBtn=isUnlocked?`<button class="qadd-btn" onclick="openQAdd('${r.id}')">＋ เพิ่มผู้ป่วย</button>`:'';
 
-    return `<div class="qcard dept-${r.dept}">
+    return `<div class="qcard dept-${r.dept}" style="border-color:${dm.color}">
       <div class="qcard-header">
         <div class="qcard-room-wrap">
           <div class="qcard-room" style="color:${dm.color}">${r.id}</div>
@@ -1248,11 +1248,11 @@ function buildAllPatients(){
     const dm=DEPT_META[r.dept]||DEPT_META.flexible;
     if(r.current) all.push({type:'ongoing',room:r.id,dept:r.dept,color:dm.color,
       name:r.current.name,hn:r.current.hn,proc:r.current.proc,doctor:r.doctor,
-      startTime:r.current.start,endTime:r.current.end,note:r.current.note});
+      startTime:r.current.start,endTime:r.current.end,note:r.current.note,age:r.current.age,anesthesia:r.current.anesthesia});
     (r.waiting||[]).forEach((p,i)=>all.push({type:'waiting',room:r.id,dept:r.dept,color:dm.color,
       name:p.name,hn:p.hn,proc:p.proc,doctor:r.doctor,startTime:null,endTime:null,note:p.note,age:p.age,anesthesia:p.anesthesia,queuePos:i+1}));
-    (r.completed||[]).forEach(p=>all.push({type:'done',room:r.id,dept:r.dept,color:dm.color,
-      name:p.name,hn:p.hn,proc:p.proc,doctor:r.doctor,startTime:p.startedAt,endTime:p.endedAt,note:p.note}));
+    (r.completed||[]).forEach((p,ci)=>all.push({type:'done',room:r.id,dept:r.dept,color:dm.color,
+      name:p.name,hn:p.hn,proc:p.proc,doctor:r.doctor,startTime:p.startedAt,endTime:p.endedAt,note:p.note,age:p.age,anesthesia:p.anesthesia,completedIdx:ci}));
   });
   return all;
 }
@@ -1295,7 +1295,7 @@ function buildTable(rows){
   const cols=[{key:'room',label:'ห้อง'},{key:'dept',label:'แผนก'},{key:'hn',label:'HN'},
     {key:'name',label:'ชื่อผู้ป่วย'},{key:'age',label:'อายุ'},{key:'anesthesia',label:'Anesthesia'},{key:'proc',label:'หัตถการ'},{key:'doctor',label:'แพทย์'},
     {key:'status',label:'สถานะ'},{key:'time',label:'เวลา'}];
-  const thead=`<thead><tr>${cols.map(c=>`<th onclick="sortBy('${c.key}')" class="${sortCol===c.key?'sorted':''}">${c.label}<span class="sort-arrow">${sortCol===c.key?(sortDir>0?'↑':'↓'):'↕'}</span></th>`).join('')}</tr></thead>`;
+  const thead=`<thead><tr>${cols.map(c=>`<th onclick="sortBy('${c.key}')" class="${sortCol===c.key?'sorted':''}">${c.label}<span class="sort-arrow">${sortCol===c.key?(sortDir>0?'↑':'↓'):'↕'}</span></th>`).join('')}${isUnlocked?'<th style="width:100px"></th>':''}</tr></thead>`;
   let sorted=[...rows].sort((a,b)=>{
     let av=sortCol==='time'?(a.startTime||0):(a[sortCol]||'');
     let bv=sortCol==='time'?(b.startTime||0):(b[sortCol]||'');
@@ -1311,6 +1311,11 @@ function buildTable(rows){
       p.type==='done'&&p.startTime?
       `<div class="time-cell">${toHHMM(p.startTime)} → ${toHHMM(p.endTime)}</div>`:
       `<span class="time-cell" style="color:var(--muted)">รอคิว</span>`;
+    const actBtn=isUnlocked?(
+      p.type==='waiting'?`<button class="qrow-btn" onclick="openQEdit('${p.room}',${p.queuePos-1},event)">✏️</button>`:
+      p.type==='ongoing'?`<button class="qrow-btn" onclick="openEditPatient('ongoing','${p.room}',-1,event)">✏️</button>`:
+      `<button class="qrow-btn" onclick="openEditPatient('done','${p.room}',${p.completedIdx},event)">✏️</button> <button class="qrow-btn" style="color:#fbbf24;border-color:rgba(245,158,11,.4)" title="ย้อนกลับเป็นกำลังผ่าตัด" onclick="undoCompleted('${p.room}',${p.completedIdx},event)">↩</button>`
+    ):'';
     return `<tr class="row-${p.dept}">
       <td><span class="room-chip" style="color:${dm.color}">${p.room}</span></td>
       <td><span class="dept-pill pill-${p.dept}">${dm.label}</span></td>
@@ -1321,6 +1326,7 @@ function buildTable(rows){
       <td class="proc-cell">${p.proc}</td>
       <td class="time-cell">${p.doctor||'—'}</td>
       <td>${stl}</td><td>${tc}</td>
+      ${isUnlocked?`<td style="white-space:nowrap">${actBtn}</td>`:''}
     </tr>`;
   }).join('')}</tbody>`;
   return `<table class="pt-table">${thead}${tbody}</table>`;
@@ -1366,7 +1372,32 @@ function openQEdit(roomId,idx,evt){
   openModal('qEditModal');
 }
 function saveQueueEdit(){
-  const{roomId,idx,isNew}=qEditContext;
+  const{roomId,idx,isNew,patientType}=qEditContext;
+  const _age=()=>document.getElementById('qfAge').value!==''?parseInt(document.getElementById('qfAge').value):'';
+  const _str=id=>document.getElementById(id).value.trim();
+  if(patientType==='ongoing'){
+    const room=rooms.find(r=>r.id===roomId);
+    if(room&&room.current){
+      room.current.name=_str('qfName')||room.current.name;
+      room.current.hn=_str('qfHN'); room.current.proc=_str('qfProc')||'—';
+      room.current.note=_str('qfNote'); room.current.age=_age();
+      room.current.anesthesia=document.getElementById('qfAnesthesia').value;
+      const sg=document.getElementById('qfSurgeon').value; if(sg) room.doctor=sg;
+    }
+    localEdits[roomId]=true;
+    closeModal('qEditModal'); saveCurrentDateData(); buildTicker(); renderAll(); return;
+  }
+  if(patientType==='done'){
+    const room=rooms.find(r=>r.id===roomId);
+    const p=room&&room.completed[idx];
+    if(p){
+      p.name=_str('qfName')||p.name; p.hn=_str('qfHN');
+      p.proc=_str('qfProc')||'—'; p.note=_str('qfNote');
+      p.age=_age(); p.anesthesia=document.getElementById('qfAnesthesia').value;
+    }
+    localEdits[roomId]=true;
+    closeModal('qEditModal'); saveCurrentDateData(); buildTicker(); renderAll(); return;
+  }
   const newRoom=document.getElementById('qfRoom').value;
   const order=parseInt(document.getElementById('qfOrder').value)||1;
   const surgeon=document.getElementById('qfSurgeon').value;
@@ -1397,6 +1428,57 @@ function deleteQueueItem(){
   rooms.find(x=>x.id===roomId).waiting.splice(idx,1);
   localEdits[roomId]=true;
   closeModal('qEditModal'); buildTicker(); renderAll();
+}
+
+// ══════════════════════════════════════════════
+// EDIT FROM PATIENT LIST + UNDO COMPLETED
+// ══════════════════════════════════════════════
+function openEditPatient(type, roomId, idx, evt){
+  evt&&evt.stopPropagation();
+  requireUnlock(()=>{
+    const room=rooms.find(r=>r.id===roomId);
+    let p;
+    if(type==='ongoing') p=room.current;
+    else p=room.completed[idx];
+    if(!p) return;
+    qEditContext={roomId,idx,isNew:false,patientType:type};
+    document.getElementById('qEditTitle').textContent=type==='ongoing'?'✏️ แก้ไขผู้ป่วย (กำลังผ่าตัด)':'✏️ แก้ไขผู้ป่วย (เสร็จสิ้น)';
+    document.getElementById('qfRoom').value=roomId;
+    document.getElementById('qfOrder').value=1;
+    document.getElementById('qfName').value=p.name||'';
+    document.getElementById('qfHN').value=p.hn||'';
+    document.getElementById('qfAge').value=p.age!==undefined&&p.age!==''?p.age:'';
+    document.getElementById('qfAnesthesia').value=p.anesthesia||'';
+    document.getElementById('qfProc').value=p.proc||'';
+    document.getElementById('qfNote').value=p.note||'';
+    refreshSurgeonSelect(type==='ongoing'?room.doctor||'':'');
+    document.getElementById('qEditDelBtn').style.display='none';
+    openModal('qEditModal');
+  });
+}
+function undoCompleted(roomId, idx, evt){
+  evt&&evt.stopPropagation();
+  requireUnlock(()=>{
+    const room=rooms.find(r=>r.id===roomId);
+    if(!room||!room.completed||!room.completed[idx]) return;
+    const p=room.completed[idx];
+    const msg=room.current
+      ?`ย้าย "${p.name}" กลับเป็นกำลังผ่าตัด?
+⚠ "${room.current.name}" ที่กำลังผ่าตัดอยู่จะถูกย้ายมารอคิว`
+      :`ย้าย "${p.name}" กลับเป็นกำลังผ่าตัดใน ${roomId}?`;
+    if(!confirm(msg)) return;
+    if(room.current){
+      if(!room.waiting) room.waiting=[];
+      room.waiting.unshift({name:room.current.name,hn:room.current.hn,proc:room.current.proc,
+        note:room.current.note||'',age:room.current.age,anesthesia:room.current.anesthesia,surgeon:room.doctor});
+    }
+    room.current={name:p.name,hn:p.hn,proc:p.proc,note:p.note||'',
+      age:p.age,anesthesia:p.anesthesia,start:p.startedAt||new Date(),end:p.endedAt||null};
+    room.status='active';
+    room.completed.splice(idx,1);
+    localEdits[roomId]=true;
+    saveCurrentDateData(); buildTicker(); renderAll();
+  });
 }
 
 // ══════════════════════════════════════════════
