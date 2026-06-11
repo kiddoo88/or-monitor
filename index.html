@@ -414,6 +414,21 @@ header{display:flex;align-items:center;justify-content:space-between;
 ::-webkit-scrollbar{width:4px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:#334155;border-radius:99px;}
+
+/* ── Kiosk / Monitor mode (จอแสดงผล OR) ───────── */
+body.kiosk .clock{font-size:2.5rem;}
+body.kiosk .pt-table{font-size:1.06rem;}
+body.kiosk .pt-table th{font-size:.82rem;}
+body.kiosk .qcard-room{font-size:1.45rem;}
+body.kiosk .op-proc{font-size:1.12rem;}
+body.kiosk .op-patient{font-size:1rem;}
+body.kiosk .op-timer{font-size:1.35rem;}
+body.kiosk .qrow-proc{font-size:1rem;}
+body.kiosk .ticker-inner{font-size:1rem;}
+body.kiosk .section-title{font-size:1rem;}
+body.kiosk #kioskBtn{color:#fbbf24;border-color:#f59e0b;}
+/* ในโหมดจอ: ซ่อนปุ่มแก้ไข/ตั้งค่าเพื่อไม่ให้รก (ออกจากโหมดได้ที่ปุ่ม 📺 หรือ Esc) */
+body.kiosk #lockBtn, body.kiosk header .icon-btn[onclick*="openSettings"]{display:none;}
 </style>
 </head>
 <body>
@@ -432,6 +447,7 @@ header{display:flex;align-items:center;justify-content:space-between;
       <span class="sync-dot"></span><span id="syncText">ไม่ได้เชื่อมต่อ</span>
     </div>
     <button class="icon-btn" id="lockBtn" onclick="toggleLock()" title="Edit lock">🔒</button>
+    <button class="icon-btn" id="kioskBtn" onclick="toggleKiosk()" title="โหมดจอแสดงผล OR (เต็มจอ · กันจอดับ)">📺</button>
     <button class="icon-btn" onclick="openSettings()">⚙️</button>
     <div style="text-align:right;">
       <div class="clock" id="clock">00:00:00</div>
@@ -835,29 +851,47 @@ function parseCSVLine(line){
     if(c==='"'){inQ=!inQ;continue;} if(c===','&&!inQ){res.push(cur);cur='';continue;} cur+=c;
   } res.push(cur); return res;
 }
+// สร้าง object ห้องจากแถว CSV (pure) — ใช้ค่าเดิมของ rm เป็น fallback
+function buildRoomFromRows(rm, rr){
+  const out={ id:rm.id, dept:rm.dept, doctor:'', status:'idle', current:null, waiting:[], completed:[] };
+  if(!rr.length) return out;            // ไม่มีแถวในชีต = ห้องว่าง
+  const first=rr[0];
+  out.dept=first['แผนก']||rm.dept;
+  const curRow=rr.find(r=>r['ประเภท']==='current');
+  out.doctor=(curRow&&curRow['แพทย์'])||first['แพทย์']||'';
+  if(curRow){
+    out.status=curRow['สถานะห้อง']||'active';
+    out.current={
+      name:curRow['ชื่อผู้ป่วย']||'', hn:curRow['HN']||'', proc:curRow['หัตถการ']||'',
+      age:curRow['อายุ']?parseInt(curRow['อายุ']):'', anesthesia:curRow['Anesthesia']||curRow['anesthesia']||'',
+      start:parseTimeStr(curRow['เวลาเริ่ม']), end:parseTimeStr(curRow['เวลาสิ้นสุด']), note:curRow['หมายเหตุ']||''
+    };
+  } else {
+    out.status=first['สถานะห้อง']||(rr.some(r=>r['ประเภท']==='waiting')?'turnover':'idle');
+  }
+  out.waiting=rr.filter(r=>r['ประเภท']==='waiting')
+    .sort((a,b)=>(+a['ลำดับ']||99)-(+b['ลำดับ']||99))
+    .map(r=>({name:r['ชื่อผู้ป่วย']||'',hn:r['HN']||'',proc:r['หัตถการ']||'',note:r['หมายเหตุ']||'',
+      age:r['อายุ']?parseInt(r['อายุ']):'',anesthesia:r['Anesthesia']||r['anesthesia']||'',surgeon:r['แพทย์']||''}));
+  out.completed=rr.filter(r=>r['ประเภท']==='done')
+    .map(r=>({name:r['ชื่อผู้ป่วย']||'',hn:r['HN']||'',proc:r['หัตถการ']||'',
+      age:r['อายุ']?parseInt(r['อายุ']):'',anesthesia:r['Anesthesia']||r['anesthesia']||'',
+      startedAt:parseTimeStr(r['เวลาเริ่ม']),endedAt:parseTimeStr(r['เวลาสิ้นสุด']),note:r['หมายเหตุ']||''}));
+  return out;
+}
 function mergeSheetData(rows){
+  if(!rows.length) return;              // ป้องกัน CSV ว่างชั่วคราว (กำลังแก้ชีต) มาล้างข้อมูล
   const byRoom={};
   rows.forEach(r=>{ const id=r['ห้อง']; if(!byRoom[id]) byRoom[id]=[]; byRoom[id].push(r); });
   rooms.forEach(rm=>{
-    if(localEdits[rm.id]) return;
-    const rr=byRoom[rm.id]||[]; if(!rr.length) return;
-    const first=rr[0];
-    rm.dept=first['แผนก']||rm.dept; rm.doctor=first['แพทย์']||rm.doctor;
-    const curRow=rr.find(r=>r['ประเภท']==='current');
-    if(curRow){
-      rm.status=curRow['สถานะห้อง']||'active';
-      rm.current={name:curRow['ชื่อผู้ป่วย']||'',hn:curRow['HN']||'',proc:curRow['หัตถการ']||'',
-        start:parseTimeStr(curRow['เวลาเริ่ม']),end:parseTimeStr(curRow['เวลาสิ้นสุด']),note:curRow['หมายเหตุ']||''};
-    } else {
-      rm.current=null;
-      rm.status=first['สถานะห้อง']||(rr.some(r=>r['ประเภท']==='waiting')?'turnover':'idle');
+    const sheetRoom=buildRoomFromRows(rm, byRoom[rm.id]||[]);
+    if(localEdits[rm.id]){
+      // ถ้า Sheet ตามทันสถานะ local แล้ว → ปลดล็อก เพื่อให้รอบหน้ารับค่าจาก Sheet ได้ตามปกติ
+      if(sigOf(sheetRoom)===sigOf(rm)) delete localEdits[rm.id];
+      return;                           // รอบนี้ยังยึด local ไว้ก่อน
     }
-    rm.waiting=rr.filter(r=>r['ประเภท']==='waiting')
-      .sort((a,b)=>(+a['ลำดับ']||99)-(+b['ลำดับ']||99))
-      .map(r=>({name:r['ชื่อผู้ป่วย']||'',hn:r['HN']||'',proc:r['หัตถการ']||'',note:r['หมายเหตุ']||'',age:r['อายุ']?parseInt(r['อายุ']):'',anesthesia:r['Anesthesia']||r['anesthesia']||''}));
-    rm.completed=rr.filter(r=>r['ประเภท']==='done')
-      .map(r=>({name:r['ชื่อผู้ป่วย']||'',hn:r['HN']||'',proc:r['หัตถการ']||'',
-        startedAt:parseTimeStr(r['เวลาเริ่ม']),endedAt:parseTimeStr(r['เวลาสิ้นสุด']),note:r['หมายเหตุ']||''}));
+    rm.dept=sheetRoom.dept; rm.doctor=sheetRoom.doctor; rm.status=sheetRoom.status;
+    rm.current=sheetRoom.current; rm.waiting=sheetRoom.waiting; rm.completed=sheetRoom.completed;
   });
   updateSurgeonFilter();
 }
@@ -865,7 +899,9 @@ async function fetchSheet(url){
   if(!url) return;
   setSyncState('loading');
   try{
-    const resp=await fetch(url,{cache:'no-store'});
+    // cache-buster กัน CSV ที่ Google publish-to-web cache ไว้ (มักหน่วงหลายนาที)
+    const bust=(url.includes('?')?'&':'?')+'_='+Date.now();
+    const resp=await fetch(url+bust,{cache:'no-store'});
     if(!resp.ok) throw new Error('HTTP '+resp.status);
     const csv=await resp.text();
     mergeSheetData(parseCSV(csv));
@@ -951,8 +987,13 @@ function clearLocalEditsForNewDay(){
   if(!confirm('ล้าง local edits ทั้งหมด?\nDashboard จะดึงข้อมูลจาก Google Sheet ใหม่ทุกห้อง')) return;
   localEdits={};
   closeModal('settingsModal');
-  if(sheetUrl) fetchSheet(sheetUrl);
-  else renderAll();
+  if(sheetUrl){
+    rooms=blankRooms();          // เคลียร์ห้องที่ค้าง แล้วค่อยรับค่าจาก Sheet ใหม่
+    initRoomToggles(); renderAll();
+    fetchSheet(sheetUrl);
+  } else {
+    renderAll();
+  }
 }
 
 function saveSettings(){
@@ -966,21 +1007,61 @@ function saveSettings(){
 }
 
 // ══════════════════════════════════════════════
-// SHEET WRITE-BACK
+// SHEET WRITE-BACK  (โมเดลใหม่: เขียนทับทั้งห้อง / replaceRoom)
 // ══════════════════════════════════════════════
+function hhmmOrEmpty(d){ return d?d.toTimeString().slice(0,5):''; }
+function ageVal(a){ return (a===0||a)?a:''; }   // เก็บ 0 ไว้ (ทารกแรกเกิด) แต่ '' / undefined → ''
+
 function syncToSheet(action, data) {
   if(!writeUrl) return;
-  // use no-cors so file:// origin works; fire-and-forget
+  // no-cors เพื่อให้ทำงานได้แม้เปิดจาก file:// ; fire-and-forget
   fetch(writeUrl, {method:'POST', mode:'no-cors', body:JSON.stringify({action,...data})}).catch(()=>{});
 }
-function patientSheetRow(p, room, order) {
-  const rm = rooms.find(r=>r.id===room)||{};
-  return {
-    room, dept:rm.dept||'', doctor:p.surgeon||rm.doctor||'', status:rm.status||'',
-    type:'waiting', order,
-    name:p.name, hn:p.hn, age:p.age||'', anesthesia:p.anesthesia||'',
-    proc:p.proc, timeStart:'', timeEnd:'', note:p.note||''
-  };
+
+// แปลงสถานะทั้งห้อง → array ของ rows (current + waiting + done)
+function roomToRows(room){
+  const rows=[];
+  if(room.current){
+    rows.push({
+      room:room.id, dept:room.dept||'', doctor:room.doctor||'', status:room.status||'active',
+      type:'current', order:'',
+      name:room.current.name||'', hn:room.current.hn||'', age:ageVal(room.current.age),
+      anesthesia:room.current.anesthesia||'', proc:room.current.proc||'',
+      timeStart:hhmmOrEmpty(room.current.start), timeEnd:hhmmOrEmpty(room.current.end),
+      note:room.current.note||''
+    });
+  }
+  (room.waiting||[]).forEach((p,i)=>rows.push({
+    room:room.id, dept:room.dept||'', doctor:p.surgeon||room.doctor||'', status:room.status||'',
+    type:'waiting', order:i+1,
+    name:p.name||'', hn:p.hn||'', age:ageVal(p.age), anesthesia:p.anesthesia||'', proc:p.proc||'',
+    timeStart:'', timeEnd:'', note:p.note||''
+  }));
+  (room.completed||[]).forEach(p=>rows.push({
+    room:room.id, dept:room.dept||'', doctor:room.doctor||'', status:room.status||'',
+    type:'done', order:'',
+    name:p.name||'', hn:p.hn||'', age:ageVal(p.age), anesthesia:p.anesthesia||'', proc:p.proc||'',
+    timeStart:hhmmOrEmpty(p.startedAt), timeEnd:hhmmOrEmpty(p.endedAt), note:p.note||''
+  }));
+  return rows;
+}
+
+// ส่งทั้งห้องไปเขียนทับใน Sheet + ล็อกห้องไว้จนกว่า CSV จะตามทัน
+function pushRoom(roomId){
+  const room=rooms.find(r=>r.id===roomId);
+  if(!room) return;
+  localEdits[roomId]=true;             // กัน poll มาเขียนทับก่อน Sheet จะอัปเดต
+  if(writeUrl) syncToSheet('replaceRoom', {room:roomId, rows:roomToRows(room)});
+}
+
+// ลายเซ็นสถานะห้อง — ใช้เทียบว่า Sheet "ตามทัน" สถานะ local แล้วหรือยัง
+function sigOf(r){
+  const empty=!r.current && !(r.waiting||[]).length && !(r.completed||[]).length;
+  if(empty) return 'EMPTY';   // ห้องว่าง: ไม่สนใจ doctor/dept เพื่อให้ปลดล็อกได้
+  const c=r.current?`C|${r.current.hn}|${r.current.proc}|${r.current.name}`:'C|-';
+  const w=(r.waiting||[]).map(p=>`${p.hn}|${p.proc}`).join('~');
+  const d=(r.completed||[]).map(p=>`${p.hn}|${p.proc}`).join('~');
+  return `${r.status}|${r.doctor}|${c}|W:${w}|D:${d}`;
 }
 
 // ══════════════════════════════════════════════
@@ -1052,7 +1133,7 @@ function endOperation(roomId, evt){
     });
     room.current=null;
     room.status=room.waiting&&room.waiting.length>0?'turnover':'idle';
-    localEdits[roomId]=true;
+    pushRoom(roomId);
     saveCurrentDateData(); buildTicker(); renderAll();
   });
 }
@@ -1079,8 +1160,8 @@ function confirmPromote(){
   targetRoom.status='active';
   // Remove from source queue
   fromRoom.waiting.splice(waitingIdx,1);
-  localEdits[fromRoomId]=true;
-  localEdits[targetRoomId]=true;
+  pushRoom(fromRoomId);
+  if(targetRoomId!==fromRoomId) pushRoom(targetRoomId);
   closeModal('promoteModal');
   saveCurrentDateData(); buildTicker(); renderAll();
 }
@@ -1097,7 +1178,7 @@ function moveQueueItem(roomId, idx, dir, evt){
   if(newIdx<0||newIdx>=w.length) return;
   // swap
   [w[idx],w[newIdx]]=[w[newIdx],w[idx]];
-  localEdits[roomId]=true;
+  pushRoom(roomId);
   saveCurrentDateData(); renderQueueDash();
 }
 
@@ -1266,6 +1347,14 @@ function updateQueueTimers(){
     if(bEl) bEl.style.width=progress(cur.start,cur.end)+'%';
   });
 }
+// live-update timers in patient list without full re-render (กัน scroll เด้ง)
+function updateListTimers(){
+  rooms.forEach(r=>{
+    if(!r.current) return;
+    const el=document.getElementById('lt-'+r.id);
+    if(el) el.textContent=elapsed(r.current.start)||'';
+  });
+}
 
 // ══════════════════════════════════════════════
 // PATIENT LIST RENDER
@@ -1341,7 +1430,7 @@ function buildTable(rows){
       p.type==='waiting'?`<span class="status-badge badge-turnover">🟡 รอ #${p.queuePos}</span>`:
       `<span class="status-badge badge-idle">✓ เสร็จ</span>`;
     const tc=p.type==='ongoing'&&p.startTime?
-      `<div class="time-cell">${toHHMM(p.startTime)} → ${toHHMM(p.endTime)}</div><div class="elapsed-cell">${elapsed(p.startTime)||''}</div>`:
+      `<div class="time-cell">${toHHMM(p.startTime)} → ${toHHMM(p.endTime)}</div><div class="elapsed-cell" id="lt-${p.room}">${elapsed(p.startTime)||''}</div>`:
       p.type==='done'&&p.startTime?
       `<div class="time-cell">${toHHMM(p.startTime)} → ${toHHMM(p.endTime)}</div>`:
       `<span class="time-cell" style="color:var(--muted)">รอคิว</span>`;
@@ -1418,7 +1507,7 @@ function saveQueueEdit(){
       room.current.anesthesia=document.getElementById('qfAnesthesia').value;
       const sg=document.getElementById('qfSurgeon').value; if(sg) room.doctor=sg;
     }
-    localEdits[roomId]=true;
+    pushRoom(roomId);
     closeModal('qEditModal'); saveCurrentDateData(); buildTicker(); renderAll(); return;
   }
   if(patientType==='done'){
@@ -1429,7 +1518,7 @@ function saveQueueEdit(){
       p.proc=_str('qfProc')||'—'; p.note=_str('qfNote');
       p.age=_age(); p.anesthesia=document.getElementById('qfAnesthesia').value;
     }
-    localEdits[roomId]=true;
+    pushRoom(roomId);
     closeModal('qEditModal'); saveCurrentDateData(); buildTicker(); renderAll(); return;
   }
   const newRoom=document.getElementById('qfRoom').value;
@@ -1443,45 +1532,33 @@ function saveQueueEdit(){
     anesthesia:document.getElementById('qfAnesthesia').value,
     surgeon};
   const src=rooms.find(r=>r.id===roomId);
-  if(!isNew){ src.waiting.splice(idx,1); if(!writeUrl) localEdits[roomId]=true; }
+  if(!isNew) src.waiting.splice(idx,1);
   const tgt=rooms.find(r=>r.id===newRoom);
   if(!tgt.waiting) tgt.waiting=[];
   tgt.waiting.splice(Math.max(0,Math.min(order-1,tgt.waiting.length)),0,p);
-  if(!writeUrl) localEdits[newRoom]=true;
-  // sync to sheet
-  const _tgt2=rooms.find(r=>r.id===newRoom);
-  const _finalIdx=_tgt2.waiting.findIndex(x=>x===p);
-  const _ord=_finalIdx>=0?_finalIdx+1:order;
-  if(isNew){
-    syncToSheet('append', patientSheetRow(p, newRoom, _ord));
-  } else {
-    syncToSheet('update', {...patientSheetRow(p, newRoom, _ord), oldRoom:roomId, oldHn:p.hn});
-  }
-  // clear localEdits so sheet polling can re-sync after write-back
-  if(writeUrl){ setTimeout(()=>{ delete localEdits[roomId]; delete localEdits[newRoom]; },4000); }
+  // เขียนกลับทั้งห้องที่เกี่ยวข้อง (replaceRoom จัดการ add/move/reorder ให้เอง)
+  pushRoom(roomId);
+  if(newRoom!==roomId) pushRoom(newRoom);
   closeModal('qEditModal'); saveCurrentDateData(); buildTicker(); renderAll();
+}
+// ลบผู้ป่วยออกจากคิว (รวมตรรกะที่เคยซ้ำกันใน confirmDeleteQ + deleteQueueItem)
+function removeWaiting(roomId, idx){
+  const rm=rooms.find(x=>x.id===roomId);
+  if(!rm||!rm.waiting||!rm.waiting[idx]) return;
+  rm.waiting.splice(idx,1);
+  pushRoom(roomId);
+  buildTicker(); renderAll();
 }
 function confirmDeleteQ(roomId,idx,evt){
   evt&&evt.stopPropagation();
   if(!confirm('ลบผู้ป่วยออกจากคิว?')) return;
-  const _dq=rooms.find(x=>x.id===roomId);
-  const _dp=_dq.waiting[idx];
-  syncToSheet('delete',{room:roomId, hn:_dp?_dp.hn:'', type:'waiting'});
-  _dq.waiting.splice(idx,1);
-  if(!writeUrl) localEdits[roomId]=true;
-  else setTimeout(()=>{ delete localEdits[roomId]; },4000);
-  buildTicker(); renderAll();
+  removeWaiting(roomId, idx);
 }
 function deleteQueueItem(){
   if(!confirm('ลบผู้ป่วยออกจากคิว?')) return;
   const{roomId,idx}=qEditContext;
-  const _dqi=rooms.find(x=>x.id===roomId);
-  const _dqp=_dqi.waiting[idx];
-  syncToSheet('delete',{room:roomId, hn:_dqp?_dqp.hn:'', type:'waiting'});
-  _dqi.waiting.splice(idx,1);
-  if(!writeUrl) localEdits[roomId]=true;
-  else setTimeout(()=>{ delete localEdits[roomId]; },4000);
-  closeModal('qEditModal'); buildTicker(); renderAll();
+  closeModal('qEditModal');
+  removeWaiting(roomId, idx);
 }
 
 // ══════════════════════════════════════════════
@@ -1530,7 +1607,7 @@ function undoCompleted(roomId, idx, evt){
       age:p.age,anesthesia:p.anesthesia,start:p.startedAt||new Date(),end:p.endedAt||null};
     room.status='active';
     room.completed.splice(idx,1);
-    localEdits[roomId]=true;
+    pushRoom(roomId);
     saveCurrentDateData(); buildTicker(); renderAll();
   });
 }
@@ -1557,7 +1634,7 @@ function buildTicker(){
   const totalW=rooms.reduce((s,r)=>s+(r.waiting?r.waiting.length:0),0);
   const totalD=rooms.reduce((s,r)=>s+(r.completed?r.completed.length:0),0);
   const msgs=[
-    ...rooms.filter(r=>r.status==='active'&&r.current).map(r=>`🟢 ${r.id} [${DEPT_META[r.dept].label}] ${r.current.proc} — ${r.doctor}`),
+    ...rooms.filter(r=>r.status==='active'&&r.current).map(r=>`🟢 ${r.id} [${(DEPT_META[r.dept]||DEPT_META.flexible).label}] ${r.current.proc} — ${r.doctor}`),
     ...rooms.filter(r=>r.status==='turnover').map(r=>`🟡 ${r.id} เตรียมห้อง — ถัดไป: ${r.waiting&&r.waiting[0]?r.waiting[0].proc:'—'}`),
     `📋 รวมรอคิว ${totalW} ราย`,
     `✅ เสร็จสิ้นวันนี้ ${totalD} ราย`,
@@ -1595,6 +1672,43 @@ document.addEventListener('keydown',e=>{
 });
 
 // ══════════════════════════════════════════════
+// KIOSK / MONITOR MODE (จอแสดงผล OR)
+// ══════════════════════════════════════════════
+let wakeLock=null;
+async function requestWakeLock(){
+  try{
+    if('wakeLock' in navigator){
+      wakeLock=await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release',()=>{ wakeLock=null; });
+    }
+  }catch(e){ /* บางเบราว์เซอร์ต้องมี user gesture ก่อน */ }
+}
+// ขอ wake lock คืนเมื่อกลับมาที่แท็บ (ระบบจะ release ให้เองเวลาแท็บถูกซ่อน)
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'){
+    if(document.body.classList.contains('kiosk')) requestWakeLock();
+  }
+});
+function toggleKiosk(){
+  const on=document.body.classList.toggle('kiosk');
+  if(on){
+    requestWakeLock();
+    const el=document.documentElement;
+    (el.requestFullscreen||el.webkitRequestFullscreen||function(){}).call(el).catch?.(()=>{});
+  }else{
+    if(wakeLock){ wakeLock.release().catch(()=>{}); wakeLock=null; }
+    if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  }
+}
+// ออกจาก fullscreen (กด Esc/F) → ออกจากโหมดจอด้วย
+document.addEventListener('fullscreenchange',()=>{
+  if(!document.fullscreenElement && document.body.classList.contains('kiosk')){
+    document.body.classList.remove('kiosk');
+    if(wakeLock){ wakeLock.release().catch(()=>{}); wakeLock=null; }
+  }
+});
+
+// ══════════════════════════════════════════════
 // RENDER ALL & INIT
 // ══════════════════════════════════════════════
 function renderAll(){
@@ -1614,7 +1728,7 @@ function initListRoomFilter(){
 function tick(){
   renderSummary();
   if(currentPage==='queue'){ updateQueueTimers(); }
-  if(currentPage==='list')  renderList();
+  if(currentPage==='list'){ updateListTimers(); }
   if(syncState==='live'&&lastSyncTime) setSyncState('live');
 }
 
