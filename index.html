@@ -681,7 +681,8 @@ let promoteCtx   = null;  // {fromRoomId, waitingIdx}
 let qEditContext  = null;
 let visibleRooms  = new Set(['OR1','OR2','OR3','OR4','OR5','OR6','OR7']);
 let surgeonFilter = '';
-let sheetUrl      = localStorage.getItem('sheetUrl')  || '';
+const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS37qXXgmgnxiwysUOtRxMJHCVxXbU9zSwH95n3FGnBEes8vxPdhomNctvS7pxSe7jcQxtW-_JxMbU7/pub?gid=0&single=true&output=csv';
+let sheetUrl      = localStorage.getItem('sheetUrl')  || DEFAULT_SHEET_URL;
 let pollIntervalS = parseInt(localStorage.getItem('pollInterval') || '15');
 let doctors       = [];   // global doctor list, persisted in localStorage
 let selectedDate  = '';   // YYYY-MM-DD
