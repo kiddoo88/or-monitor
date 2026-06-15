@@ -506,21 +506,33 @@ function startPolling(){
   state.pollTimer=setInterval(poll, cfg.interval*1000);
 }
 
-/* push the full current snapshot back to the Sheet via Apps Script */
-async function pushSnapshot(){
+/* push the full current snapshot back to the Sheet via Apps Script.
+   Uses a hidden <form> POST into a hidden <iframe>: this is NOT subject to CORS,
+   the browser follows Apps Script's 302 redirect natively, and the JSON arrives
+   reliably as the `payload` form field (e.parameter.payload in doPost). */
+function pushSnapshot(){
   const url=cfg.script;
   if(!url){ toast("บันทึกในเครื่องแล้ว (ยังไม่ได้ตั้ง Write URL)","warn"); return; }
   const cases=mergedCases().map(c=>{
     const o={}; COLS.forEach(k=>o[k]=c[k]!==undefined?c[k]:""); return o;
   });
+  const payload=JSON.stringify({action:"replace",cases});
   try{
     setStatus("warn","กำลังบันทึกขึ้น Sheet…");
-    await fetch(url,{
-      method:"POST", mode:"no-cors",
-      headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body:JSON.stringify({action:"replace",cases})
-    });
-    // no-cors => opaque response; assume success, protect view briefly
+    let ifr=document.getElementById("orm_sink");
+    if(!ifr){
+      ifr=document.createElement("iframe");
+      ifr.name="orm_sink"; ifr.id="orm_sink"; ifr.style.display="none";
+      document.body.appendChild(ifr);
+    }
+    const form=document.createElement("form");
+    form.method="POST"; form.action=url; form.target="orm_sink"; form.style.display="none";
+    const ta=document.createElement("textarea"); ta.name="payload"; ta.value=payload;
+    form.appendChild(ta);
+    document.body.appendChild(form);
+    form.submit();
+    setTimeout(()=>{ try{form.remove();}catch(e){} },3000);
+    // can't read cross-origin result; assume sent and protect local view briefly
     state.graceUntil=Date.now()+Math.max(20,cfg.interval+5)*1000;
     setStatus("ok","บันทึกขึ้น Sheet แล้ว");
     toast("บันทึกขึ้น Google Sheet แล้ว ✓","ok");
