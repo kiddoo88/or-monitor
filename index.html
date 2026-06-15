@@ -302,6 +302,7 @@
         <b>✏️ Write-back (เขียนกลับ Sheet):</b> ใส่ URL จาก <b>Google Apps Script</b> (Web App) เพื่อให้แอปส่งข้อมูลกลับเข้า Sheet เมื่อ add / edit / delete / undo — วิธี deploy อยู่ในไฟล์คู่มือ setup
       </div>
       <div class="field"><label>Apps Script Write URL (เขียน)</label><input id="setScript" placeholder="https://script.google.com/macros/s/.../exec" /></div>
+      <button class="btn" id="setTestWrite" style="width:100%;margin-bottom:6px">🧪 ทดสอบเขียน — เปิด URL ตรวจสถานะ (ต้องเห็น {"ok":true})</button>
       <div class="row-btns">
         <button class="btn" id="setTest">🔗 ทดสอบอ่าน</button>
         <button class="btn" onclick="closeModal('setOverlay')">ปิด</button>
@@ -385,7 +386,14 @@ const $ = id => document.getElementById(id);
 const cfg = {
   get csv(){const v=localStorage.getItem(LS.csv);return v!==null?v:DEFAULT_CSV;},
   set csv(v){localStorage.setItem(LS.csv,v)},
-  get script(){const v=localStorage.getItem(LS.script);return v!==null?v:DEFAULT_SCRIPT;},
+  get script(){
+    const v=localStorage.getItem(LS.script);
+    if(v===null) return DEFAULT_SCRIPT;
+    // auto-heal: an echo / googleusercontent URL is READ-ONLY and cannot accept
+    // write-backs. Ignore it and use the proper /exec Web App URL instead.
+    if(!v.trim() || v.indexOf("googleusercontent.com")>-1 || v.indexOf("/macros/echo")>-1) return DEFAULT_SCRIPT;
+    return v;
+  },
   set script(v){localStorage.setItem(LS.script,v)},
   get interval(){return parseInt(localStorage.getItem(LS.interval)||"15",10)},
   set interval(v){localStorage.setItem(LS.interval,String(v))},
@@ -863,7 +871,20 @@ function closeModal(id){$(id).classList.remove("show");}
 /* ============================================================
    INIT / EVENTS
    ============================================================ */
+/* bump this when the baked-in DEFAULT_SCRIPT / DEFAULT_CSV change, to force every
+   device to drop a stale saved URL and adopt the new default once */
+const CFG_VERSION="2026-06-16a";
+function migrateConfig(){
+  if(localStorage.getItem("orm_cfgver")!==CFG_VERSION){
+    // drop stale saved backend URLs so the new defaults take effect
+    localStorage.removeItem(LS.script);
+    localStorage.removeItem(LS.csv);
+    localStorage.setItem("orm_cfgver",CFG_VERSION);
+  }
+}
+
 function init(){
+  migrateConfig();
   loadOverrides();
   state.rotate=localStorage.getItem(LS.rotate)==="1";
   $("rotateBtn").classList.toggle("active",state.rotate);
@@ -898,9 +919,20 @@ function init(){
 
   // settings
   $("setSave").onclick=()=>{
-    cfg.csv=$("setCsv").value.trim(); cfg.script=$("setScript").value.trim();
+    const sc=$("setScript").value.trim();
+    if(sc && (sc.indexOf("googleusercontent.com")>-1 || sc.indexOf("/macros/echo")>-1)){
+      toast("URL เขียนต้องลงท้าย /exec (ไม่ใช่ลิงก์ echo) — ยังไม่บันทึก","err"); return;
+    }
+    cfg.csv=$("setCsv").value.trim(); cfg.script=sc;
     cfg.interval=parseInt($("setInterval").value,10);
     closeModal("setOverlay"); toast("บันทึกการตั้งค่าแล้ว","ok"); startPolling();
+  };
+  $("setTestWrite").onclick=()=>{
+    const u=(($("setScript").value.trim())||cfg.script);
+    if(!u){toast("ยังไม่มี Write URL","err");return;}
+    if(u.indexOf("/exec")<0){toast("URL ควรลงท้าย /exec","err");}
+    window.open(u,"_blank","noopener");
+    toast("เปิดแท็บใหม่ — ถ้าเห็น {\"ok\":true,...} แปลว่า deploy ถูกต้อง","ok");
   };
   $("setTest").onclick=async()=>{
     const u=$("setCsv").value.trim(); if(!u){toast("ใส่ CSV URL ก่อน","err");return;}
