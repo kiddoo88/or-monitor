@@ -1,1953 +1,876 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>OR Monitor — ตารางห้องผ่าตัด</title>
 <style>
-/* ── Root & Reset ─────────────────────────────── */
-:root{
-  --bg:#0a0e1a;--surface:#111827;--surface2:#1e293b;--border:#1f2937;
-  --text:#f1f5f9;--muted:#94a3b8;
-  --obs-gyne:#ec4899;--obs-gyne-bg:#1f0616;
-  --surg:#06b6d4;    --surg-bg:#021b20;
-  --eye:#22c55e;     --eye-bg:#031a0b;
-  --ortho:#f97316;   --ortho-bg:#1c0d02;
-  --ent:#6366f1;     --ent-bg:#0d0e25;
-  --maxillo:#a855f7; --maxillo-bg:#130d1f;
-  --flexible:#eab308;--flexible-bg:#1a1600;
-}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:'Segoe UI','Noto Sans Thai',sans-serif;
-  height:100vh;display:flex;flex-direction:column;overflow:hidden;}
-
-/* ── Header ──────────────────────────────────── */
-header{display:flex;align-items:center;justify-content:space-between;
-  padding:7px 18px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;gap:10px;}
-.hd-left{display:flex;align-items:center;gap:12px;flex-shrink:0;}
-.logo{font-size:1.25rem;font-weight:800;letter-spacing:1px;}
-.logo span{color:#38bdf8;}
-.subtitle{font-size:.68rem;color:var(--muted);margin-top:1px;}
-.hd-center{display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex:1;justify-content:center;}
-.hd-right{display:flex;align-items:center;gap:9px;flex-shrink:0;}
-.clock{font-size:2rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1;color:#38bdf8;}
-.date-label{font-size:.68rem;color:var(--muted);margin-top:2px;text-align:right;}
-.sync-status{display:flex;align-items:center;gap:5px;font-size:.7rem;color:var(--muted);
-  background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:99px;padding:3px 9px;white-space:nowrap;}
-.sync-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
-.sync-live   .sync-dot{background:#22c55e;box-shadow:0 0 6px #22c55e;}
-.sync-error  .sync-dot{background:#ef4444;}
-.sync-off    .sync-dot{background:#475569;}
-.sync-loading .sync-dot{background:#f59e0b;animation:blink .8s infinite;}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-.icon-btn{background:none;border:1px solid var(--border);border-radius:7px;color:var(--muted);
-  cursor:pointer;padding:5px 8px;font-size:.95rem;transition:all .15s;font-family:inherit;}
-.icon-btn:hover{color:var(--text);border-color:#64748b;}
-.icon-btn.active{color:#fbbf24;border-color:#f59e0b;}
-
-/* ── Tabs ─────────────────────────────────────── */
-.tab-nav{display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 18px;flex-shrink:0;gap:2px;}
-.tab-btn{padding:8px 20px;font-size:.84rem;font-weight:600;color:var(--muted);cursor:pointer;
-  border:none;background:none;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;font-family:inherit;white-space:nowrap;}
-.tab-btn:hover{color:var(--text);}
-.tab-btn.active{color:#38bdf8;border-bottom-color:#38bdf8;}
-
-/* ── Pages ───────────────────────────────────── */
-.page{display:none;flex:1;overflow:hidden;flex-direction:column;}
-.page.active{display:flex;}
-
-/* ── Status badges ───────────────────────────── */
-.status-badge{padding:3px 9px;border-radius:99px;font-size:.63rem;font-weight:700;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap;}
-.badge-active   {background:rgba(34,197,94,.2); color:#4ade80;border:1px solid #22c55e;}
-.badge-turnover {background:rgba(245,158,11,.2);color:#fbbf24;border:1px solid #f59e0b;}
-.badge-idle     {background:rgba(71,85,105,.2); color:#94a3b8;border:1px solid #475569;}
-.badge-hold     {background:rgba(239,68,68,.2); color:#f87171;border:1px solid #ef4444;}
-.badge-emergency{background:rgba(220,38,38,.9); color:#fff;   border:1px solid #dc2626;animation:pulsem 1s infinite;}
-@keyframes pulsem{0%,100%{opacity:1}50%{opacity:.4}}
-
-/* ── Dept colours ────────────────────────────── */
-.dept-obs-gyne{background:var(--obs-gyne-bg);border-color:var(--obs-gyne)!important;}
-.dept-obs-gyne::before{background:var(--obs-gyne);}
-.dept-surg    {background:var(--surg-bg);    border-color:var(--surg)!important;}
-.dept-surg::before{background:var(--surg);}
-.dept-eye     {background:var(--eye-bg);     border-color:var(--eye)!important;}
-.dept-eye::before{background:var(--eye);}
-.dept-ortho   {background:var(--ortho-bg);   border-color:var(--ortho)!important;}
-.dept-ortho::before{background:var(--ortho);}
-.dept-ent     {background:var(--ent-bg);     border-color:var(--ent)!important;}
-.dept-ent::before{background:var(--ent);}
-.dept-maxillo {background:var(--maxillo-bg); border-color:var(--maxillo)!important;}
-.dept-maxillo::before{background:var(--maxillo);}
-.dept-flexible{background:var(--flexible-bg);border-color:var(--flexible)!important;}
-.dept-flexible::before{background:var(--flexible);}
-.dept-obs-gyne .dept-tag{color:var(--obs-gyne);}
-.dept-surg     .dept-tag{color:var(--surg);}
-.dept-eye      .dept-tag{color:var(--eye);}
-.dept-ortho    .dept-tag{color:var(--ortho);}
-.dept-ent      .dept-tag{color:var(--ent);}
-.dept-maxillo  .dept-tag{color:var(--maxillo);}
-.dept-flexible .dept-tag{color:var(--flexible);}
-.dept-obs-gyne .op-progress{background:var(--obs-gyne);}
-.dept-surg     .op-progress{background:var(--surg);}
-.dept-eye      .op-progress{background:var(--eye);}
-.dept-ortho    .op-progress{background:var(--ortho);}
-.dept-ent      .op-progress{background:var(--ent);}
-.dept-maxillo  .op-progress{background:var(--maxillo);}
-.dept-flexible .op-progress{background:var(--flexible);}
-
-/* ── Queue Page ──────────────────────────────── */
-.queue-toolbar{display:flex;align-items:center;gap:9px;padding:7px 14px;
-  background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
-.toolbar-label{font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);white-space:nowrap;}
-.room-toggle{display:flex;gap:3px;flex-wrap:wrap;}
-.rtog{padding:3px 9px;border-radius:5px;font-size:.7rem;font-weight:700;cursor:pointer;
-  border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s;font-family:inherit;}
-.rtog.on{color:var(--text);border-color:currentColor;}
-.rtog-obs-gyne.on{color:var(--obs-gyne);background:rgba(236,72,153,.12);}
-.rtog-surg.on    {color:var(--surg);    background:rgba(6,182,212,.12);}
-.rtog-eye.on     {color:var(--eye);     background:rgba(34,197,94,.12);}
-.rtog-ortho.on   {color:var(--ortho);   background:rgba(249,115,22,.12);}
-.rtog-ent.on     {color:var(--ent);     background:rgba(99,102,241,.12);}
-.rtog-maxillo.on {color:var(--maxillo); background:rgba(168,85,247,.12);}
-.rtog-flexible.on{color:var(--flexible);background:rgba(234,179,8,.12);}
-.surgeon-sel{background:var(--bg);border:1px solid var(--border);border-radius:6px;
-  color:var(--text);padding:4px 9px;font-size:.74rem;font-family:inherit;outline:none;cursor:pointer;}
-.divider-v{width:1px;height:22px;background:var(--border);margin:0 3px;}
-.view-toggle{display:flex;gap:2px;}
-.vtog{padding:4px 10px;border-radius:5px;font-size:.7rem;font-weight:600;cursor:pointer;
-  border:1px solid var(--border);background:transparent;color:var(--muted);font-family:inherit;transition:all .15s;}
-.vtog.on{background:#1e40af;color:#fff;border-color:#2563eb;}
-
-.queue-scroll{flex:1;overflow-y:auto;padding:10px;}
-.queue-grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));align-content:start;}
-
-/* ── Queue Card ──────────────────────────────── */
-.qcard{border-radius:13px;border:2px solid transparent;display:flex;flex-direction:column;
-  overflow:hidden;transition:transform .12s;position:relative;}
-.qcard:hover{transform:scale(1.006);}
-.qcard-header{display:flex;align-items:center;justify-content:space-between;padding:10px 13px 7px;flex-shrink:0;}
-.qcard-room-wrap{display:flex;align-items:center;gap:8px;}
-.qcard-room{font-size:1.6rem;font-weight:900;line-height:1;}
-.qcard-right{text-align:right;}
-.qcard-dept{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
-.qcard-doctor{font-size:.66rem;color:var(--muted);margin-top:1px;}
-.local-badge{font-size:.55rem;font-weight:700;background:#92400e;color:#fbbf24;
-  border:1px solid #f59e0b;border-radius:99px;padding:1px 5px;letter-spacing:.3px;}
-
-/* ── Ongoing Operation Block (prominent) ─────── */
-.op-block{
-  margin:0 10px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.1);
-  padding:12px 14px;display:flex;flex-direction:column;gap:6px;
-  background:rgba(255,255,255,.04);position:relative;overflow:hidden;flex-shrink:0;}
-.op-block::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;}
-.dept-obs-gyne .op-block::before{background:var(--obs-gyne);}
-.dept-surg     .op-block::before{background:var(--surg);}
-.dept-eye      .op-block::before{background:var(--eye);}
-.dept-ortho    .op-block::before{background:var(--ortho);}
-.dept-ent      .op-block::before{background:var(--ent);}
-.dept-maxillo  .op-block::before{background:var(--maxillo);}
-.dept-flexible .op-block::before{background:var(--flexible);}
-.op-label{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
-  color:var(--muted);display:flex;align-items:center;gap:5px;}
-.op-live-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;
-  box-shadow:0 0 6px #22c55e;animation:livepulse 1.5s infinite;}
-@keyframes livepulse{0%,100%{opacity:1;box-shadow:0 0 6px #22c55e}50%{opacity:.5;box-shadow:0 0 2px #22c55e}}
-.op-proc{font-size:1.1rem;font-weight:800;line-height:1.2;}
-.op-patient{font-size:.82rem;color:var(--muted);margin-top:1px;}
-.op-hn{font-size:.68rem;color:var(--muted);opacity:.7;}
-.op-meta{display:flex;align-items:center;justify-content:space-between;margin-top:2px;}
-.op-timer{font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.5px;}
-.op-pct{font-size:.72rem;color:var(--muted);}
-.op-bar-wrap{height:6px;background:rgba(255,255,255,.1);border-radius:99px;overflow:hidden;margin-top:3px;}
-.op-progress{height:100%;border-radius:99px;transition:width 1s linear;}
-.op-times{display:flex;justify-content:space-between;font-size:.64rem;color:var(--muted);margin-top:2px;}
-
-/* end-operation button */
-.end-op-btn{
-  margin-top:8px;width:100%;padding:7px;border-radius:7px;font-size:.76rem;font-weight:700;
-  cursor:pointer;border:1px solid rgba(239,68,68,.4);background:rgba(239,68,68,.1);
-  color:#f87171;font-family:inherit;transition:all .15s;letter-spacing:.2px;display:none;}
-.end-op-btn.visible{display:block;}
-.end-op-btn:hover{background:rgba(239,68,68,.25);border-color:#ef4444;color:#fca5a5;}
-
-/* turnover / idle strip */
-.op-placeholder{margin:0 10px 8px;border-radius:10px;border:1px dashed var(--border);
-  padding:10px 14px;text-align:center;color:var(--muted);font-size:.78rem;opacity:.6;flex-shrink:0;}
-
-/* ── Waiting Queue ───────────────────────────── */
-.q-section-label{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:5px 13px 3px;font-size:.63rem;font-weight:700;text-transform:uppercase;
-  letter-spacing:.5px;color:var(--muted);}
-.qlist{flex:1;min-height:50px;}
-.qlist-empty{display:flex;align-items:center;justify-content:center;
-  padding:14px;color:var(--muted);font-size:.74rem;opacity:.5;}
-.qrow{display:flex;align-items:center;gap:7px;padding:7px 10px 7px 13px;
-  transition:background .1s;position:relative;}
-.qrow:hover{background:rgba(255,255,255,.04);}
-.qrow-num{font-size:.68rem;font-weight:800;width:16px;text-align:center;opacity:.45;flex-shrink:0;}
-.qrow-main{flex:1;min-width:0;}
-.qrow-proc{font-size:.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.qrow-sub{font-size:.65rem;color:var(--muted);}
-.qrow-note{font-size:.6rem;color:#fbbf24;}
-.qrow-surgeon{font-size:.67rem;color:var(--muted);white-space:nowrap;flex-shrink:0;padding:0 4px;}
-.qrow-btns{display:flex;gap:3px;flex-shrink:0;}
-/* promote button — always visible */
-.promote-btn{
-  padding:5px 10px;border-radius:7px;font-size:.72rem;font-weight:700;
-  cursor:pointer;border:none;font-family:inherit;white-space:nowrap;
-  background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.4);
-  transition:all .15s;}
-.promote-btn:hover{background:rgba(34,197,94,.3);border-color:#22c55e;}
-/* sort up/down buttons */
-.qrow-sort{display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
-.sort-btn{background:none;border:1px solid var(--border);border-radius:4px;
-  color:var(--muted);cursor:pointer;padding:2px 5px;font-size:.65rem;line-height:1;
-  transition:all .12s;font-family:inherit;width:22px;text-align:center;}
-.sort-btn:hover{background:rgba(56,189,248,.15);color:#38bdf8;border-color:#38bdf8;}
-.sort-btn:disabled{opacity:.15;cursor:default;pointer-events:none;}
-
-/* edit/delete — appear on hover or when unlocked */
-.qrow-edit-btns{display:flex;gap:3px;opacity:0;transition:opacity .15s;}
-.qrow:hover .qrow-edit-btns{opacity:1;}
-.qrow-btn{background:none;border:1px solid var(--border);border-radius:5px;
-  color:var(--muted);cursor:pointer;padding:3px 6px;font-size:.68rem;transition:all .15s;font-family:inherit;}
-.qrow-btn:hover{color:var(--text);border-color:#64748b;}
-.qrow-btn.del:hover{color:#f87171;border-color:#ef4444;}
-.qdivider{height:1px;background:rgba(255,255,255,.04);margin:0 13px;}
-.qadd-btn{width:100%;padding:7px;text-align:center;font-size:.7rem;color:var(--muted);
-  cursor:pointer;background:none;border:none;border-top:1px solid rgba(255,255,255,.06);
-  transition:all .15s;font-family:inherit;flex-shrink:0;}
-.qadd-btn:hover{color:var(--text);background:rgba(255,255,255,.03);}
-.qcount-row{display:flex;align-items:center;justify-content:space-around;
-  padding:5px 13px;border-top:1px solid rgba(255,255,255,.06);
-  border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;}
-.qcount-box{display:flex;flex-direction:column;align-items:center;gap:1px;}
-.qcount-num{font-size:1.4rem;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;}
-.qcount-lbl{font-size:.57rem;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;}
-.qcount-div{width:1px;height:28px;background:rgba(255,255,255,.08);}
-
-/* doctor picker edit button */
-.edit-doc-btn{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:18px;height:18px;border-radius:4px;font-size:.65rem;cursor:pointer;
-  background:rgba(56,189,248,.12);color:#38bdf8;border:1px solid rgba(56,189,248,.3);
-  margin-left:4px;vertical-align:middle;transition:all .15s;user-select:none;}
-.edit-doc-btn:hover{background:rgba(56,189,248,.25);border-color:#38bdf8;}
-
-/* doctor modal list */
-.doc-list{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;margin-bottom:10px;}
-.doc-item{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:7px;
-  background:rgba(255,255,255,.04);border:1px solid var(--border);}
-.doc-item-name{flex:1;font-size:.82rem;}
-.doc-item-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:2px 4px;
-  border-radius:4px;transition:all .15s;font-family:inherit;}
-.doc-item-del:hover{color:#f87171;background:rgba(239,68,68,.1);}
-.doc-add-row{display:flex;gap:6px;margin-bottom:12px;}
-.doc-add-row input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:7px;
-  color:var(--text);padding:7px 11px;font-size:.84rem;font-family:inherit;outline:none;}
-.doc-add-row input:focus{border-color:#38bdf8;}
-.btn-add-doc{padding:7px 13px;border-radius:7px;font-size:.82rem;font-weight:600;cursor:pointer;
-  border:1px solid rgba(56,189,248,.4);background:rgba(56,189,248,.1);color:#38bdf8;font-family:inherit;
-  white-space:nowrap;transition:all .15s;}
-.btn-add-doc:hover{background:rgba(56,189,248,.2);border-color:#38bdf8;}
-.doc-select-wrap{margin-bottom:10px;}
-.doc-select-wrap select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;
-  color:var(--text);padding:8px 11px;font-size:.86rem;font-family:inherit;outline:none;}
-.doc-select-wrap select:focus{border-color:#38bdf8;}
-.doc-section-lbl{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
-  color:var(--muted);margin-bottom:6px;display:block;}
-
-/* surgeon view */
-.scard{border-radius:12px;border:2px solid var(--border);background:var(--surface2);overflow:hidden;min-height:100px;}
-.scard-header{padding:10px 13px 7px;border-bottom:1px solid var(--border);}
-.scard-name{font-size:1rem;font-weight:700;}
-.scard-dept{font-size:.68rem;color:var(--muted);}
-.scard-rooms{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;}
-.sroom-chip{font-size:.62rem;font-weight:700;padding:2px 7px;border-radius:5px;border:1px solid currentColor;}
-.scard-table{width:100%;border-collapse:collapse;}
-.scard-table td{padding:6px 13px;font-size:.76rem;border-bottom:1px solid rgba(255,255,255,.04);}
-.scard-table tr:last-child td{border-bottom:none;}
-.sc-num{color:var(--muted);font-weight:700;font-size:.66rem;width:18px;}
-.sc-room{font-weight:700;font-size:.68rem;}
-.sc-type{font-size:.64rem;}
-.sc-current{color:#4ade80;}.sc-waiting{color:#fbbf24;}.sc-done{color:var(--muted);}
-
-/* ── Patient List ────────────────────────────── */
-.list-toolbar{display:flex;align-items:center;gap:9px;padding:7px 14px;
-  background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
-.filter-tabs{display:flex;gap:4px;}
-.filter-btn{padding:4px 12px;border-radius:99px;font-size:.75rem;font-weight:600;cursor:pointer;
-  border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s;font-family:inherit;}
-.filter-btn:hover{color:var(--text);border-color:#64748b;}
-.filter-btn.active{background:#1e40af;color:#fff;border-color:#2563eb;}
-.filter-btn.active.f-ongoing{background:#166534;border-color:#22c55e;}
-.filter-btn.active.f-waiting{background:#92400e;border-color:#f59e0b;}
-.filter-btn.active.f-done   {background:#1e3a5f;border-color:#38bdf8;}
-.count-chip{display:inline-flex;align-items:center;justify-content:center;
-  background:rgba(255,255,255,.12);border-radius:99px;font-size:.6rem;font-weight:700;padding:1px 5px;margin-left:3px;}
-.search-input{flex:1;min-width:130px;max-width:250px;background:var(--bg);border:1px solid var(--border);
-  border-radius:7px;color:var(--text);padding:5px 10px;font-size:.78rem;font-family:inherit;outline:none;}
-.search-input:focus{border-color:#38bdf8;}
-.room-filter{background:var(--bg);border:1px solid var(--border);border-radius:7px;
-  color:var(--text);padding:5px 8px;font-size:.75rem;font-family:inherit;outline:none;cursor:pointer;}
-.list-stats{display:flex;gap:12px;margin-left:auto;}
-.stat-item{text-align:center;}
-.stat-val{font-size:1.25rem;font-weight:700;line-height:1;}
-.stat-ongoing{color:#4ade80;}.stat-waiting{color:#fbbf24;}.stat-done{color:#38bdf8;}
-.stat-lbl{font-size:.56rem;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}
-.list-scroll{flex:1;overflow-y:auto;padding:9px 14px;}
-.section-block{margin-bottom:16px;}
-.section-title{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);
-  padding:5px 0;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--border);margin-bottom:6px;}
-.sdot{width:7px;height:7px;border-radius:50%;display:inline-block;}
-.dot-ongoing{background:#22c55e;box-shadow:0 0 5px #22c55e;}
-.dot-waiting{background:#f59e0b;}
-.dot-done{background:#38bdf8;}
-.pt-table{width:100%;border-collapse:collapse;}
-.pt-table th{font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);
-  padding:5px 9px;text-align:left;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;}
-.pt-table th:hover{color:var(--text);}
-.pt-table th.sorted .sort-arrow{opacity:1;color:#38bdf8;}
-.pt-table th .sort-arrow{opacity:.3;margin-left:2px;}
-.pt-table td{padding:6px 9px;font-size:.79rem;border-bottom:1px solid rgba(31,41,55,.6);vertical-align:middle;}
-.pt-table tr:hover td{background:rgba(255,255,255,.03);}
-.pt-table tr td:first-child{border-left:3px solid transparent;padding-left:7px;}
-.row-obs-gyne td:first-child{border-left-color:var(--obs-gyne);}
-.row-surg     td:first-child{border-left-color:var(--surg);}
-.row-eye      td:first-child{border-left-color:var(--eye);}
-.row-ortho    td:first-child{border-left-color:var(--ortho);}
-.row-ent      td:first-child{border-left-color:var(--ent);}
-.row-maxillo  td:first-child{border-left-color:var(--maxillo);}
-.row-flexible td:first-child{border-left-color:var(--flexible);}
-.room-chip{display:inline-flex;align-items:center;font-size:.68rem;font-weight:800;
-  padding:2px 7px;border-radius:5px;border:1px solid currentColor;white-space:nowrap;}
-.dept-pill{font-size:.63rem;font-weight:600;padding:2px 7px;border-radius:99px;}
-.pill-obs-gyne{background:rgba(236,72,153,.15);color:var(--obs-gyne);}
-.pill-surg    {background:rgba(6,182,212,.15); color:var(--surg);}
-.pill-eye     {background:rgba(34,197,94,.15); color:var(--eye);}
-.pill-ortho   {background:rgba(249,115,22,.15);color:var(--ortho);}
-.pill-ent     {background:rgba(99,102,241,.15);color:var(--ent);}
-.pill-maxillo {background:rgba(168,85,247,.15);color:var(--maxillo);}
-.pill-flexible{background:rgba(234,179,8,.15); color:var(--flexible);}
-.hn-cell{font-size:.68rem;color:var(--muted);font-variant-numeric:tabular-nums;}
-.proc-cell{font-size:.76rem;}
-.time-cell{font-variant-numeric:tabular-nums;font-size:.74rem;white-space:nowrap;}
-.elapsed-cell{font-size:.7rem;font-variant-numeric:tabular-nums;color:#4ade80;}
-.done-elapsed{color:var(--muted);}
-.note-small{font-size:.6rem;color:var(--muted);margin-top:1px;}
-
-/* ── Date nav ────────────────────────────────── */
-.date-nav{display:flex;align-items:center;gap:5px;background:var(--surface2);
-  border-bottom:1px solid var(--border);padding:5px 18px;flex-shrink:0;}
-.date-nav-btn{background:none;border:1px solid var(--border);border-radius:6px;
-  color:var(--muted);cursor:pointer;padding:4px 9px;font-size:.82rem;transition:all .15s;font-family:inherit;}
-.date-nav-btn:hover{color:var(--text);border-color:#64748b;}
-.date-nav-btn.today-btn{color:#38bdf8;border-color:rgba(56,189,248,.4);background:rgba(56,189,248,.08);}
-.date-input{background:var(--bg);border:1px solid var(--border);border-radius:7px;
-  color:var(--text);padding:4px 9px;font-size:.82rem;font-family:inherit;outline:none;
-  cursor:pointer;transition:border-color .15s;}
-.date-input:focus{border-color:#38bdf8;}
-.date-display{font-size:.82rem;font-weight:600;color:var(--text);white-space:nowrap;}
-.date-today-label{font-size:.65rem;color:#4ade80;font-weight:700;margin-left:3px;}
-.date-other-label{font-size:.65rem;color:#f59e0b;font-weight:700;margin-left:3px;
-  background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:99px;padding:1px 6px;}
-
-/* ── Modals ──────────────────────────────────── */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);
-  display:flex;align-items:center;justify-content:center;
-  z-index:200;opacity:0;pointer-events:none;transition:opacity .18s;}
-.modal-overlay.open{opacity:1;pointer-events:all;}
-.modal{background:var(--surface2);border-radius:14px;padding:24px;
-  border:1px solid var(--border);transform:translateY(12px);transition:transform .18s;max-height:90vh;overflow-y:auto;}
-.modal-overlay.open .modal{transform:translateY(0);}
-.modal h2{font-size:1.05rem;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
-.form-group{display:flex;flex-direction:column;gap:4px;margin-bottom:11px;}
-.form-group label{font-size:.68rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;}
-.form-group input,.form-group select{background:var(--bg);border:1px solid var(--border);border-radius:7px;
-  color:var(--text);padding:7px 11px;font-size:.86rem;font-family:inherit;outline:none;transition:border-color .15s;}
-.form-group input:focus,.form-group select:focus{border-color:#38bdf8;}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
-.modal-actions{display:flex;gap:7px;justify-content:flex-end;margin-top:16px;}
-.btn{padding:8px 18px;border-radius:7px;font-size:.82rem;font-weight:600;cursor:pointer;border:none;transition:opacity .15s;font-family:inherit;}
-.btn:hover{opacity:.82;}
-.btn-primary  {background:#2563eb;color:#fff;}
-.btn-secondary{background:#334155;color:var(--muted);}
-.btn-danger   {background:#dc2626;color:#fff;}
-.btn-green    {background:#166534;color:#4ade80;border:1px solid #22c55e;}
-
-/* promote modal special */
-.promote-patient-info{
-  background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);
-  border-radius:9px;padding:12px 14px;margin-bottom:14px;}
-.pm-proc{font-size:1rem;font-weight:700;color:#4ade80;}
-.pm-name{font-size:.8rem;color:var(--muted);margin-top:2px;}
-.pm-warn{display:none;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.4);
-  border-radius:8px;padding:9px 12px;font-size:.75rem;color:#fbbf24;margin-bottom:10px;line-height:1.5;}
-
-/* password modal */
-.pw-lock{font-size:2.4rem;margin-bottom:6px;}
-.pw-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:9px;
-  color:var(--text);padding:10px 14px;font-size:1.1rem;font-family:monospace;
-  outline:none;text-align:center;letter-spacing:.2em;margin:8px 0;}
-.pw-input:focus{border-color:#38bdf8;}
-.pw-error{color:#f87171;font-size:.78rem;margin-top:2px;min-height:16px;}
-
-/* settings */
-.sheet-hint{background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.2);
-  border-radius:8px;padding:10px 13px;margin-bottom:12px;font-size:.72rem;color:var(--muted);line-height:1.6;}
-.sheet-hint strong{color:#38bdf8;}
-.sheet-hint code{background:rgba(255,255,255,.08);padding:1px 4px;border-radius:3px;font-size:.68rem;}
-.test-result{font-size:.74rem;padding:6px 10px;border-radius:6px;margin-top:5px;display:none;}
-.test-ok {background:rgba(34,197,94,.1);color:#4ade80;border:1px solid #22c55e;}
-.test-err{background:rgba(239,68,68,.1);color:#f87171;border:1px solid #ef4444;}
-
-/* ── Ticker ──────────────────────────────────── */
-.ticker{background:#0a0e1a;border-top:1px solid var(--border);padding:5px 14px;font-size:.67rem;
-  color:var(--muted);display:flex;gap:7px;align-items:center;flex-shrink:0;white-space:nowrap;overflow:hidden;}
-.ticker-label{color:#38bdf8;font-weight:700;flex-shrink:0;}
-.ticker-scroll{overflow:hidden;flex:1;}
-.ticker-inner{display:inline-block;animation:tmove 50s linear infinite;}
-@keyframes tmove{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
-
-/* scrollbar */
-::-webkit-scrollbar{width:4px;}
-::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:#334155;border-radius:99px;}
-
-/* ── Kiosk / Monitor mode (จอแสดงผล OR) ───────── */
-body.kiosk .clock{font-size:2.5rem;}
-body.kiosk .pt-table{font-size:1.06rem;}
-body.kiosk .pt-table th{font-size:.82rem;}
-body.kiosk .qcard-room{font-size:1.45rem;}
-body.kiosk .op-proc{font-size:1.12rem;}
-body.kiosk .op-patient{font-size:1rem;}
-body.kiosk .op-timer{font-size:1.35rem;}
-body.kiosk .qrow-proc{font-size:1rem;}
-body.kiosk .ticker-inner{font-size:1rem;}
-body.kiosk .section-title{font-size:1rem;}
-body.kiosk #kioskBtn{color:#fbbf24;border-color:#f59e0b;}
-/* ในโหมดจอ: ซ่อนปุ่มแก้ไข/ตั้งค่าเพื่อไม่ให้รก (ออกจากโหมดได้ที่ปุ่ม 📺 หรือ Esc) */
-body.kiosk #lockBtn, body.kiosk header .icon-btn[onclick*="openSettings"]{display:none;}
+  :root{
+    --bg:#0b1120; --bg2:#0f172a; --panel:#111c33; --panel2:#16223d;
+    --line:#1e2d4d; --txt:#e8eefc; --muted:#8aa0c6; --muted2:#5f739a;
+    --green:#22c55e; --yellow:#eab308; --red:#ef4444; --blue:#3b82f6;
+    --obs:#ec4899; --surg:#06b6d4; --eye:#22c55e; --ortho:#f97316;
+    --ent:#a855f7; --flex:#94a3b8;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Sarabun","Segoe UI",system-ui,-apple-system,sans-serif;
+    background:radial-gradient(1200px 800px at 70% -10%,#13213d 0%,var(--bg) 55%);
+    color:var(--txt); min-height:100vh; padding:14px 18px 24px;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ---------- Header ---------- */
+  header{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:14px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand .logo{font-size:34px;line-height:1}
+  .brand h1{font-size:22px;font-weight:800;letter-spacing:.3px}
+  .brand small{display:block;color:var(--muted);font-weight:500;font-size:12.5px;margin-top:2px}
+  .hspace{flex:1}
+  .status{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;
+    padding:7px 13px;border-radius:999px;background:var(--panel);border:1px solid var(--line)}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--muted2)}
+  .status.ok .dot{background:var(--green);box-shadow:0 0 10px var(--green)}
+  .status.warn .dot{background:var(--yellow);box-shadow:0 0 10px var(--yellow)}
+  .status.err .dot{background:var(--red);box-shadow:0 0 10px var(--red)}
+  .clock{font-variant-numeric:tabular-nums;font-weight:800;font-size:22px;
+    background:var(--panel);border:1px solid var(--line);padding:6px 14px;border-radius:12px}
+  .iconbtn{width:42px;height:42px;border-radius:12px;border:1px solid var(--line);
+    background:var(--panel);color:var(--txt);font-size:18px;cursor:pointer;display:grid;place-items:center;
+    transition:.15s}
+  .iconbtn:hover{background:var(--panel2);border-color:#2c4170}
+  .iconbtn.active{border-color:var(--green);color:var(--green)}
+  /* ---------- Summary ---------- */
+  .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 18px}
+  .stat .n{font-size:30px;font-weight:800;line-height:1}
+  .stat .l{color:var(--muted);font-size:13px;margin-top:6px;font-weight:600}
+  .stat.op .n{color:var(--green)} .stat.wait .n{color:var(--yellow)} .stat.done .n{color:var(--blue)}
+  /* ---------- Room grid ---------- */
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  @media(max-width:1500px){.grid{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}.summary{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:680px){.grid{grid-template-columns:1fr}}
+  .room{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    overflow:hidden;display:flex;flex-direction:column;min-height:220px}
+  .room .top{padding:12px 14px;display:flex;align-items:center;gap:10px;
+    border-bottom:1px solid var(--line);background:var(--panel2)}
+  .room .top .rid{font-size:18px;font-weight:800}
+  .badge{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:999px;color:#08111f;letter-spacing:.4px}
+  .room .top .surg{margin-left:auto;color:var(--muted);font-size:13px;font-weight:700;
+    cursor:pointer;text-align:right;max-width:48%}
+  .room .top .surg:hover{color:var(--txt)}
+  .room .body{padding:13px 14px;flex:1;display:flex;flex-direction:column;gap:11px}
+  .now{border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:#10203a;position:relative}
+  .now.active{border-color:rgba(34,197,94,.6);background:linear-gradient(180deg,#10271c,#10203a)}
+  .now .tag{font-size:11px;font-weight:800;color:var(--green);letter-spacing:.5px;display:flex;align-items:center;gap:6px}
+  .now.empty .tag{color:var(--muted2)}
+  .pulse{width:8px;height:8px;border-radius:50%;background:var(--green);animation:p 1.4s infinite}
+  @keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+  .now .pname{font-size:17px;font-weight:800;margin-top:5px}
+  .now .meta{color:var(--muted);font-size:12.5px;margin-top:3px;line-height:1.5}
+  .now .proc{color:#cdd9f3;font-size:13.5px;margin-top:4px;font-weight:600}
+  .now .time{position:absolute;top:11px;right:12px;font-size:12px;color:var(--muted);font-weight:700;
+    font-variant-numeric:tabular-nums}
+  .qhead{font-size:12px;font-weight:800;color:var(--muted);display:flex;align-items:center;gap:6px;
+    text-transform:uppercase;letter-spacing:.5px}
+  .qlist{display:flex;flex-direction:column;gap:7px}
+  .qitem{display:flex;align-items:center;gap:10px;background:#0e1a30;border:1px solid var(--line);
+    border-radius:10px;padding:8px 10px;cursor:pointer;transition:.12s}
+  .qitem:hover{border-color:#2c4170;background:#12203a}
+  .qnum{width:24px;height:24px;border-radius:7px;background:var(--panel2);display:grid;place-items:center;
+    font-weight:800;font-size:13px;color:var(--yellow);flex:none;border:1px solid var(--line)}
+  .qitem .pn{font-weight:700;font-size:14px}
+  .qitem .pm{color:var(--muted);font-size:11.5px;margin-top:1px}
+  .qitem .right{margin-left:auto;text-align:right;color:var(--muted);font-size:11px}
+  .empty-msg{color:var(--muted2);font-size:12.5px;font-style:italic;padding:4px 2px}
+  .room.done-room{opacity:.78}
+  .add-row{display:flex;gap:8px;margin-top:auto;padding-top:4px}
+  .mini{flex:1;font-size:12.5px;font-weight:700;padding:8px;border-radius:9px;cursor:pointer;
+    background:transparent;border:1px dashed var(--line);color:var(--muted)}
+  .mini:hover{border-color:#2c4170;color:var(--txt)}
+  /* ---------- Floating ---------- */
+  .floating-wrap{margin-top:16px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+  .floating-wrap h2{font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:11px}
+  .float-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+  .float-card{background:#0e1a30;border:1px solid var(--line);border-left:3px solid var(--flex);
+    border-radius:11px;padding:10px 12px;cursor:pointer;transition:.12s}
+  .float-card:hover{border-color:#2c4170}
+  .float-card .pn{font-weight:800;font-size:14.5px}
+  .float-card .pm{color:var(--muted);font-size:12px;margin-top:3px;line-height:1.5}
+  .float-card .sg{color:#cdd9f3;font-size:12.5px;margin-top:3px;font-weight:600}
+  /* ---------- Done log ---------- */
+  .done-wrap{margin-top:16px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+  .done-wrap h2{font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:11px}
+  .done-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+  .done-card{background:#0c1626;border:1px solid var(--line);border-radius:11px;padding:9px 12px;
+    display:flex;align-items:center;gap:10px}
+  .done-card .info{flex:1;min-width:0}
+  .done-card .pn{font-weight:700;font-size:13.5px;color:#b9c7e6}
+  .done-card .pm{color:var(--muted2);font-size:11.5px;margin-top:2px}
+  .undo{font-size:11.5px;font-weight:800;padding:6px 10px;border-radius:8px;cursor:pointer;
+    background:transparent;border:1px solid var(--line);color:var(--muted)}
+  .undo:hover{border-color:var(--green);color:var(--green)}
+  /* ---------- Pager ---------- */
+  .pager{display:none;align-items:center;justify-content:center;gap:14px;margin-top:18px}
+  .pager.show{display:flex}
+  .pager button{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
+    color:var(--txt);font-size:18px;cursor:pointer}
+  .pager .pinfo{font-weight:700;color:var(--muted);font-size:14px}
+  /* ---------- Modal ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(4,8,18,.72);backdrop-filter:blur(4px);
+    display:none;align-items:flex-start;justify-content:center;z-index:50;padding:40px 16px;overflow:auto}
+  .overlay.show{display:flex}
+  .modal{background:var(--bg2);border:1px solid var(--line);border-radius:18px;width:100%;max-width:520px;
+    padding:22px 22px 20px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .modal.wide{max-width:640px}
+  .modal h3{font-size:18px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+  .modal .sub{color:var(--muted);font-size:13px;margin-bottom:16px;line-height:1.6}
+  .field{margin-bottom:13px}
+  .field label{display:block;font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:5px}
+  .field input,.field select,.field textarea{width:100%;background:var(--panel);border:1px solid var(--line);
+    color:var(--txt);border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit}
+  .field textarea{resize:vertical;min-height:54px}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--blue)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
+  .row-btns{display:flex;gap:10px;margin-top:18px}
+  .btn{flex:1;padding:11px;border-radius:11px;font-size:14px;font-weight:800;cursor:pointer;border:1px solid var(--line);
+    background:var(--panel);color:var(--txt);transition:.15s}
+  .btn:hover{background:var(--panel2)}
+  .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+  .btn.primary:hover{filter:brightness(1.1)}
+  .btn.green{background:var(--green);border-color:var(--green);color:#06210f}
+  .btn.danger{background:transparent;border-color:var(--red);color:var(--red)}
+  .btn.danger:hover{background:rgba(239,68,68,.12)}
+  .help{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 13px;
+    font-size:12.5px;color:var(--muted);line-height:1.7;margin-bottom:14px}
+  .help code{background:#0a1322;padding:1px 6px;border-radius:5px;color:#9fd0ff;font-size:11.5px}
+  .surg-list{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto;margin-top:6px}
+  .surg-row{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:8px 12px}
+  .surg-row span{flex:1;font-weight:600}
+  .surg-row button{background:transparent;border:none;color:var(--red);cursor:pointer;font-size:16px}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:12px 20px;border-radius:12px;
+    font-weight:700;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:80;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.err{border-color:var(--red)} .toast.ok{border-color:var(--green)}
+  .locked-hint{font-size:12px;color:var(--muted2);margin-left:6px}
+  .seg{display:flex;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px}
+  .seg button{flex:1;border:none;background:transparent;color:var(--muted);font-weight:700;font-size:13px;
+    padding:7px;border-radius:7px;cursor:pointer}
+  .seg button.active{background:var(--blue);color:#fff}
 </style>
 </head>
 <body>
-
-<!-- ══ HEADER ══════════════════════════════════ -->
-<header>
-  <div class="hd-left">
-    <div>
-      <div class="logo">🏥 OR <span>MONITOR</span></div>
-      <div class="subtitle">ตารางห้องผ่าตัด · Real-time</div>
-    </div>
-    <div class="hd-center" id="summaryBar"></div>
-  </div>
-  <div class="hd-right">
-    <div class="sync-status sync-off" id="syncStatus">
-      <span class="sync-dot"></span><span id="syncText">ไม่ได้เชื่อมต่อ</span>
-    </div>
-    <button class="icon-btn" id="lockBtn" onclick="toggleLock()" title="Edit lock">🔒</button>
-    <button class="icon-btn" id="kioskBtn" onclick="toggleKiosk()" title="โหมดจอแสดงผล OR (เต็มจอ · กันจอดับ)">📺</button>
-    <button class="icon-btn" onclick="openSettings()">⚙️</button>
-    <div style="text-align:right;">
-      <div class="clock" id="clock">00:00:00</div>
-      <div class="date-label" id="dateLabel"></div>
-    </div>
-  </div>
-</header>
-
-<!-- ══ TABS ════════════════════════════════════ -->
-<nav class="tab-nav">
-  <button class="tab-btn active" onclick="switchPage('list',this)">📋 รายชื่อผู้ป่วย</button>
-  <button class="tab-btn" onclick="switchPage('queue',this)">🔢 คิวรอ</button>
-</nav>
-
-<!-- ══ DATE NAV ═════════════════════════════════ -->
-<div class="date-nav">
-  <button class="date-nav-btn" onclick="shiftDate(-1)">‹</button>
-  <input class="date-input" type="date" id="datePickerInput" onchange="onDatePickerChange(this.value)">
-  <button class="date-nav-btn" onclick="shiftDate(1)">›</button>
-  <span class="date-display" id="dateNavDisplay"></span>
-  <button class="date-nav-btn today-btn" id="todayBtn" onclick="goToday()">วันนี้</button>
-</div>
-
-<!-- ══ PAGE: PATIENT LIST ══════════════════════ -->
-<div class="page active" id="listPage">
-  <div class="list-toolbar">
-    <div class="filter-tabs">
-      <button class="filter-btn f-all active" onclick="setFilter('all',this)">ทั้งหมด <span class="count-chip" id="cnt-all">0</span></button>
-      <button class="filter-btn f-ongoing"    onclick="setFilter('ongoing',this)">🟢 กำลังผ่าตัด <span class="count-chip" id="cnt-ongoing">0</span></button>
-      <button class="filter-btn f-waiting"    onclick="setFilter('waiting',this)">🟡 รอ <span class="count-chip" id="cnt-waiting">0</span></button>
-      <button class="filter-btn f-done"       onclick="setFilter('done',this)">✓ เสร็จแล้ว <span class="count-chip" id="cnt-done">0</span></button>
-    </div>
-    <input class="search-input" id="searchInput" type="text" placeholder="🔍 ค้นหา ชื่อ / HN / หัตถการ..." oninput="renderList()">
-    <select class="room-filter" id="roomFilter" onchange="renderList()">
-      <option value="">ทุกห้อง</option>
-    </select>
-    <div class="list-stats">
-      <div class="stat-item"><div class="stat-val stat-ongoing" id="s-ongoing">0</div><div class="stat-lbl">กำลังผ่าตัด</div></div>
-      <div class="stat-item"><div class="stat-val stat-waiting" id="s-waiting">0</div><div class="stat-lbl">รอคิว</div></div>
-      <div class="stat-item"><div class="stat-val stat-done" id="s-done">0</div><div class="stat-lbl">เสร็จแล้ว</div></div>
-    </div>
-  </div>
-  <div class="list-scroll" id="listScroll"></div>
-</div>
-
-<!-- ══ PAGE: QUEUE ══════════════════════════════ -->
-<div class="page" id="queuePage">
-  <div class="queue-toolbar">
-    <span class="toolbar-label">ห้อง:</span>
-    <div class="room-toggle" id="roomToggles"></div>
-    <div class="divider-v"></div>
-    <span class="toolbar-label">แพทย์:</span>
-    <select class="surgeon-sel" id="surgeonFilter" onchange="renderQueueDash()">
-      <option value="">ทุกคน</option>
-    </select>
-    <div class="divider-v"></div>
-    <div class="view-toggle">
-      <button class="vtog on" id="vtByRoom"    onclick="setView('room')">By Room</button>
-      <button class="vtog"    id="vtBySurgeon" onclick="setView('surgeon')">By Surgeon</button>
-    </div>
-  </div>
-  <div class="queue-scroll">
-    <div class="queue-grid" id="queueGrid"></div>
-  </div>
-</div>
-
-<!-- ══ TICKER ══════════════════════════════════ -->
-<div class="ticker">
-  <span class="ticker-label">📢</span>
-  <div class="ticker-scroll"><div class="ticker-inner" id="ticker">กำลังโหลด...</div></div>
-</div>
-
-<!-- ══ MODAL: PASSWORD ══════════════════════════ -->
-<div class="modal-overlay" id="pwModal">
-  <div class="modal" style="width:310px;text-align:center;">
-    <div class="pw-lock">🔒</div>
-    <h2 style="justify-content:center;">ใส่รหัสเพื่อแก้ไข</h2>
-    <input class="pw-input" id="pwInput" type="password" placeholder="••••••" maxlength="20"
-      onkeydown="if(event.key==='Enter')submitPw()">
-    <div class="pw-error" id="pwError"></div>
-    <div class="modal-actions" style="justify-content:center;margin-top:10px;">
-      <button class="btn btn-secondary" onclick="closeModal('pwModal')">ยกเลิก</button>
-      <button class="btn btn-primary" onclick="submitPw()">เข้าสู่ระบบ</button>
-    </div>
-  </div>
-</div>
-
-<!-- ══ MODAL: PROMOTE TO OR ════════════════════ -->
-<div class="modal-overlay" id="promoteModal">
-  <div class="modal" style="width:440px;">
-    <h2>⬆️ ส่งผู้ป่วยขึ้นโต๊ะผ่าตัด</h2>
-    <div class="promote-patient-info">
-      <div class="pm-proc" id="pmProc">—</div>
-      <div class="pm-name" id="pmPatient">—</div>
-    </div>
-    <div class="form-group">
-      <label>เลือกห้องผ่าตัด</label>
-      <select id="pmRoom" onchange="updatePromoteWarn()">
-        <option value="OR1">OR1</option><option value="OR2">OR2</option>
-        <option value="OR3">OR3</option><option value="OR4">OR4</option>
-        <option value="OR5">OR5</option><option value="OR6">OR6</option>
-        <option value="OR7">OR7</option>
-      </select>
-    </div>
-    <div class="pm-warn" id="pmWarn"></div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>เวลาเริ่ม</label>
-        <input id="pmStart" type="time" oninput="recalcPromoteEnd()">
-      </div>
-      <div class="form-group">
-        <label>เวลาสิ้นสุด (คาด)</label>
-        <input id="pmEnd" type="time" style="opacity:.7">
+  <header>
+    <div class="brand">
+      <span class="logo">🏥</span>
+      <div>
+        <h1>OR MONITOR</h1>
+        <small>ตารางห้องผ่าตัด · Real-time</small>
       </div>
     </div>
-    <div class="form-group">
-      <label>ระยะเวลา operation</label>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <button type="button" class="btn btn-secondary" style="padding:6px 14px;font-size:.85rem;" onclick="changeDur(-30)">− 30 นาที</button>
-        <span id="pmDurLabel" style="font-size:1rem;font-weight:700;min-width:70px;text-align:center;color:var(--accent)">60 นาที</span>
-        <button type="button" class="btn btn-secondary" style="padding:6px 14px;font-size:.85rem;" onclick="changeDur(30)">+ 30 นาที</button>
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-secondary" onclick="closeModal('promoteModal')">ยกเลิก</button>
-      <button class="btn btn-green" onclick="confirmPromote()">✓ ยืนยัน ขึ้นโต๊ะ</button>
-    </div>
-  </div>
-</div>
+    <div class="hspace"></div>
+    <div id="status" class="status"><span class="dot"></span><span id="statusText">ยังไม่เชื่อมต่อ</span></div>
+    <div class="clock" id="clock">00:00:00</div>
+    <button class="iconbtn" id="lockBtn" title="ล็อก/ปลดล็อกการแก้ไข">🔒</button>
+    <button class="iconbtn" id="rotateBtn" title="สลับหน้าอัตโนมัติ">🔁</button>
+    <button class="iconbtn" id="fsBtn" title="เต็มจอ">📺</button>
+    <button class="iconbtn" id="setBtn" title="ตั้งค่า">⚙️</button>
+  </header>
 
-<!-- ══ MODAL: QUEUE ITEM EDIT ══════════════════ -->
-<div class="modal-overlay" id="qEditModal">
-  <div class="modal" style="width:440px;">
-    <h2 id="qEditTitle">✏️ แก้ไขคิว</h2>
-    <div class="form-row">
-      <div class="form-group">
-        <label>ห้องผ่าตัด</label>
-        <select id="qfRoom">
-          <option value="OR1">OR1</option><option value="OR2">OR2</option>
-          <option value="OR3">OR3</option><option value="OR4">OR4</option>
-          <option value="OR5">OR5</option><option value="OR6">OR6</option>
-          <option value="OR7">OR7</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>ลำดับคิว</label>
-        <input id="qfOrder" type="number" min="1" max="20" value="1">
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>ชื่อผู้ป่วย</label><input id="qfName" type="text"></div>
-      <div class="form-group"><label>HN</label><input id="qfHN" type="text"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>อายุ (ปี)</label><input id="qfAge" type="number" min="0" max="150" placeholder="เช่น 45"></div>
-      <div class="form-group"><label>Anesthesia</label><select id="qfAnesthesia"><option value="">(ไม่ระบุ)</option><option value="GA">GA</option><option value="TIVA">TIVA</option><option value="SB">SB</option><option value="RB">RB</option><option value="LA">LA</option><option value="MAC">MAC</option></select></div>
-    </div>
-    <div class="form-group"><label>หัตถการ</label><input id="qfProc" type="text"></div>
-    <div class="form-group">
-      <label>ศัลยแพทย์</label>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <select id="qfSurgeon" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text);padding:7px 11px;font-size:.86rem;font-family:inherit;outline:none;">
-          <option value="">(ไม่ระบุ)</option>
-        </select>
-        <button class="btn-add-doc" style="padding:7px 10px;font-size:.76rem;" onclick="openDoctorManager()" title="จัดการรายชื่อแพทย์">⚙️ จัดการ</button>
-      </div>
-    </div>
-    <div class="form-group"><label>หมายเหตุ</label><input id="qfNote" type="text" placeholder="เช่น NPO ครบ, ยา anticoagulant..."></div>
-    <div class="modal-actions">
-      <button class="btn btn-danger" id="qEditDelBtn" onclick="deleteQueueItem()">ลบออก</button>
-      <button class="btn btn-secondary" onclick="closeModal('qEditModal')">ยกเลิก</button>
-      <button class="btn btn-primary" onclick="saveQueueEdit()">บันทึก ✓</button>
-    </div>
+  <div class="summary">
+    <div class="stat"><div class="n" id="sAll">0</div><div class="l">ทั้งหมด (วันนี้)</div></div>
+    <div class="stat op"><div class="n" id="sOp">0</div><div class="l">🟢 กำลังผ่าตัด</div></div>
+    <div class="stat wait"><div class="n" id="sWait">0</div><div class="l">🟡 รอคิว</div></div>
+    <div class="stat done"><div class="n" id="sDone">0</div><div class="l">✓ เสร็จแล้ว</div></div>
   </div>
-</div>
 
-<!-- ══ MODAL: SETTINGS ══════════════════════════ -->
-<div class="modal-overlay" id="settingsModal">
-  <div class="modal" style="width:500px;">
-    <h2>⚙️ ตั้งค่า Google Sheets</h2>
-    <div class="sheet-hint">
-      <strong>วิธีเชื่อมต่อ:</strong> File → Share → <strong>Publish to web</strong> → CSV → คัดลอก URL<br><br>
-      <strong>คอลัมน์ (row 1 = header):</strong><br>
-      <code>ห้อง | แผนก | แพทย์ | สถานะห้อง | ประเภท | ลำดับ | ชื่อผู้ป่วย | HN | อายุ | Anesthesia | หัตถการ | เวลาเริ่ม | เวลาสิ้นสุด | หมายเหตุ</code><br>
-      <strong>ประเภท:</strong> <code>current</code> / <code>waiting</code> / <code>done</code>
-    </div>
-    <div class="form-group">
-      <label>Published CSV URL</label>
-      <input id="sheetUrlInput" type="url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv">
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>อัปเดตทุก (วินาที)</label>
-        <select id="pollIntervalInput">
-          <option value="10">10 วินาที</option>
-          <option value="15" selected>15 วินาที</option>
-          <option value="30">30 วินาที</option>
-          <option value="60">60 วินาที</option>
-        </select>
-      </div>
-      <div class="form-group" style="justify-content:flex-end;">
-        <label>&nbsp;</label>
-        <button class="btn btn-secondary" onclick="testSheet()">🔗 ทดสอบ</button>
-      </div>
-    </div>
-    <div class="test-result" id="testResult"></div>
-    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
-      <div class="sheet-hint" style="margin-bottom:10px;">
-        <strong>✏️ Write-back (เขียนกลับ Sheet):</strong> ใส่ URL จาก <strong>Google Apps Script</strong> เพื่อให้แอปส่งข้อมูลคนไข้กลับเข้า Sheet เมื่อ add/edit/delete<br>
-        <span style="opacity:.7">ดูวิธี deploy Apps Script ได้ในเอกสาร setup</span>
-      </div>
-      <div class="form-group">
-        <label>Apps Script Write URL</label>
-        <input id="writeUrlInput" type="url" placeholder="https://script.google.com/macros/s/.../exec">
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-secondary" onclick="closeModal('settingsModal')">ยกเลิก</button>
-      <button class="btn btn-primary" onclick="saveSettings()">บันทึก</button>
-    </div>
-    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">
-      <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;">🌅 เริ่มต้นวันใหม่</div>
-      <p style="font-size:.74rem;color:var(--muted);line-height:1.6;margin-bottom:10px;">
-        ล้าง local edits ทั้งหมดเพื่อให้ dashboard ดึงข้อมูลจาก Google Sheet ใหม่<br>
-        ใช้ทุกเช้าหลังจาก incharge อัปเดต Sheet สำหรับวันใหม่แล้ว
-      </p>
-      <button class="btn" style="background:#1e3a2f;color:#4ade80;border:1px solid #22c55e;width:100%;" onclick="clearLocalEditsForNewDay()">🌅 เริ่มต้นวันใหม่ (ล้าง local edits)</button>
-    </div>
-  </div>
-</div>
+  <div class="grid" id="grid"></div>
 
-<!-- ══ MODAL: DOCTOR MANAGER ════════════════════ -->
-<div class="modal-overlay" id="doctorModal">
-  <div class="modal" style="width:380px;">
-    <h2>👨‍⚕️ จัดการรายชื่อแพทย์</h2>
-    <label class="doc-section-lbl">เพิ่มชื่อแพทย์ใหม่</label>
-    <div class="doc-add-row">
-      <input id="docNewName" type="text" placeholder="เช่น นพ.สมชาย วิชาดี" onkeydown="if(event.key==='Enter')addDoctorToList()">
-      <button class="btn-add-doc" onclick="addDoctorToList()">＋ เพิ่ม</button>
-    </div>
-    <label class="doc-section-lbl">รายชื่อแพทย์ทั้งหมด</label>
-    <div class="doc-list" id="docList"></div>
-    <div class="modal-actions">
-      <button class="btn btn-primary" onclick="closeDoctorManager()">✓ เสร็จสิ้น</button>
+  <div class="pager" id="pager">
+    <button id="prevPage">‹</button>
+    <span class="pinfo" id="pageInfo">1 / 1</span>
+    <button id="nextPage">›</button>
+  </div>
+
+  <div class="floating-wrap" id="floatWrap" style="display:none">
+    <h2>📌 เคสที่ set ลอยไว้ (ยังไม่ assign เข้าห้อง) <span class="locked-hint" id="floatCount"></span></h2>
+    <div class="float-grid" id="floatGrid"></div>
+  </div>
+
+  <div class="done-wrap" id="doneWrap" style="display:none">
+    <h2>✓ เสร็จแล้ววันนี้ <span class="locked-hint" id="doneCount"></span></h2>
+    <div class="done-grid" id="doneGrid"></div>
+  </div>
+
+  <!-- Password modal -->
+  <div class="overlay" id="pwOverlay">
+    <div class="modal" style="max-width:380px">
+      <h3>🔒 ใส่รหัสเพื่อแก้ไข</h3>
+      <div class="sub">ป้อนรหัสผ่านเพื่อปลดล็อกการแก้ไขข้อมูล</div>
+      <div class="field"><input type="password" id="pwInput" placeholder="รหัสผ่าน" autocomplete="off" /></div>
+      <div class="row-btns">
+        <button class="btn" onclick="closeModal('pwOverlay')">ยกเลิก</button>
+        <button class="btn primary" id="pwSubmit">เข้าสู่ระบบ</button>
+      </div>
     </div>
   </div>
-</div>
+
+  <!-- Case edit modal -->
+  <div class="overlay" id="caseOverlay">
+    <div class="modal wide">
+      <h3 id="caseTitle">✏️ แก้ไขเคส</h3>
+      <div class="sub">แก้ไขข้อมูลผู้ป่วย / ย้ายห้อง / เปลี่ยนสถานะ — บันทึกแล้วจะ sync กลับ Google Sheet</div>
+      <div class="seg" id="typeSeg" style="margin-bottom:14px">
+        <button data-type="current">🟢 กำลังผ่า</button>
+        <button data-type="waiting">🟡 รอคิว</button>
+        <button data-type="floating">📌 ลอยไว้</button>
+        <button data-type="done">✓ เสร็จ</button>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>ห้องผ่าตัด</label>
+          <select id="cRoom"></select></div>
+        <div class="field"><label>ลำดับคิว</label><input type="number" id="cOrder" min="1" value="1" /></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>ชื่อผู้ป่วย</label><input id="cName" placeholder="ชื่อ-สกุล" /></div>
+        <div class="field"><label>HN</label><input id="cHN" placeholder="HN" /></div>
+      </div>
+      <div class="grid3">
+        <div class="field"><label>อายุ (ปี)</label><input type="number" id="cAge" min="0" /></div>
+        <div class="field"><label>Anesthesia</label>
+          <select id="cAnes">
+            <option value="">(ไม่ระบุ)</option><option>GA</option><option>TIVA</option>
+            <option>SB</option><option>RB</option><option>LA</option><option>MAC</option>
+          </select></div>
+        <div class="field"><label>ศัลยแพทย์</label><select id="cSurg"></select></div>
+      </div>
+      <div class="field"><label>หัตถการ</label><input id="cProc" placeholder="ชื่อหัตถการ" /></div>
+      <div class="grid2">
+        <div class="field"><label>เวลาเริ่ม</label><input type="time" id="cStart" /></div>
+        <div class="field"><label>เวลาสิ้นสุด (คาด)</label><input type="time" id="cEnd" /></div>
+      </div>
+      <div class="field"><label>หมายเหตุ</label><textarea id="cNote" placeholder="หมายเหตุ"></textarea></div>
+      <div class="row-btns">
+        <button class="btn danger" id="cDelete">ลบออก</button>
+        <button class="btn" onclick="closeModal('caseOverlay')">ยกเลิก</button>
+        <button class="btn green" id="cSave">บันทึก ✓</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings modal -->
+  <div class="overlay" id="setOverlay">
+    <div class="modal wide">
+      <h3>⚙️ ตั้งค่า Google Sheets</h3>
+      <div class="help">
+        <b>อ่านข้อมูล:</b> ใน Google Sheets ไปที่ File → Share → <b>Publish to web</b> → เลือกชีต → <b>CSV</b> → คัดลอก URL มาวาง<br>
+        <b>คอลัมน์ (row 1 = header):</b><br>
+        <code>ห้อง | แผนก | แพทย์ | สถานะห้อง | ประเภท | ลำดับ | ชื่อผู้ป่วย | HN | อายุ | Anesthesia | หัตถการ | เวลาเริ่ม | เวลาสิ้นสุด | หมายเหตุ</code><br>
+        <b>ประเภท:</b> <code>current</code> / <code>waiting</code> / <code>floating</code> / <code>done</code>
+      </div>
+      <div class="field"><label>Published CSV URL (อ่าน)</label><input id="setCsv" placeholder="https://docs.google.com/.../pub?output=csv" /></div>
+      <div class="field"><label>อัปเดตทุก (วินาที)</label>
+        <select id="setInterval"><option value="10">10 วินาที</option><option value="15" selected>15 วินาที</option>
+          <option value="30">30 วินาที</option><option value="60">60 วินาที</option></select></div>
+      <div class="help" style="margin-top:4px">
+        <b>✏️ Write-back (เขียนกลับ Sheet):</b> ใส่ URL จาก <b>Google Apps Script</b> (Web App) เพื่อให้แอปส่งข้อมูลกลับเข้า Sheet เมื่อ add / edit / delete / undo — วิธี deploy อยู่ในไฟล์คู่มือ setup
+      </div>
+      <div class="field"><label>Apps Script Write URL (เขียน)</label><input id="setScript" placeholder="https://script.google.com/macros/s/.../exec" /></div>
+      <div class="row-btns">
+        <button class="btn" id="setTest">🔗 ทดสอบอ่าน</button>
+        <button class="btn" onclick="closeModal('setOverlay')">ปิด</button>
+        <button class="btn primary" id="setSave">บันทึก</button>
+      </div>
+      <div class="help" style="margin-top:14px">
+        <b>🌅 เริ่มต้นวันใหม่</b> — ล้าง local edits ทั้งหมดเพื่อดึงข้อมูลจาก Google Sheet ใหม่ (ใช้ทุกเช้าหลัง incharge อัปเดต Sheet)
+      </div>
+      <button class="btn danger" id="newDayBtn" style="width:100%">🌅 เริ่มต้นวันใหม่ (ล้าง local edits)</button>
+      <div style="margin-top:14px"><button class="btn" id="surgMgrBtn" style="width:100%">👨‍⚕️ จัดการรายชื่อแพทย์</button></div>
+    </div>
+  </div>
+
+  <!-- Surgeon manager modal -->
+  <div class="overlay" id="surgOverlay">
+    <div class="modal" style="max-width:440px">
+      <h3>👨‍⚕️ จัดการรายชื่อแพทย์</h3>
+      <div class="sub">เพิ่ม / ลบ รายชื่อศัลยแพทย์ที่ใช้เลือกในเคส</div>
+      <div class="grid2" style="grid-template-columns:1fr auto;align-items:end">
+        <div class="field" style="margin:0"><label>เพิ่มชื่อแพทย์ใหม่</label><input id="newSurg" placeholder="นพ./พญ. ..." /></div>
+        <button class="btn primary" id="addSurg" style="max-width:90px">＋ เพิ่ม</button>
+      </div>
+      <div class="surg-list" id="surgList"></div>
+      <div class="row-btns"><button class="btn primary" onclick="closeModal('surgOverlay')">✓ เสร็จสิ้น</button></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
 
 <script>
-// ══════════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════════
-const CORRECT_PW = 'ormtp';
-let isUnlocked   = false;
-let currentPage  = 'list';
-let listFilter   = 'all';
-let sortCol = 'room', sortDir = 1;
-let qViewMode    = 'room';
-let lastSyncTime = null;
-let syncState    = 'off';
-let pollTimer    = null;
-let localEdits   = {};
-let pendingPwAction = null;
-let promoteCtx   = null;  // {fromRoomId, waitingIdx}
-let qEditContext  = null;
-let visibleRooms  = new Set(['OR1','OR2','OR3','OR4','OR5','OR6','OR7']);
-let surgeonFilter = '';
-const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS37qXXgmgnxiwysUOtRxMJHCVxXbU9zSwH95n3FGnBEes8vxPdhomNctvS7pxSe7jcQxtW-_JxMbU7/pub?gid=0&single=true&output=csv';
-let sheetUrl      = localStorage.getItem('sheetUrl')  || DEFAULT_SHEET_URL;
-let pollIntervalS = parseInt(localStorage.getItem('pollInterval') || '5');
-let doctors       = [];   // global doctor list, persisted in localStorage
-let selectedDate  = '';   // YYYY-MM-DD
-let dateDataStore = {};   // {YYYY-MM-DD: serialized rooms}
-const DEFAULT_WRITE_URL = 'https://script.google.com/macros/s/AKfycbykjgJIp3ufhdP7J_wFQXe5RUta5kuU3H--99h6tWueMQt6rQ4A5IuglywfYCN7O_7A/exec';
-let writeUrl = localStorage.getItem('writeUrl') || DEFAULT_WRITE_URL;
+/* ============================================================
+   OR MONITOR  —  single-file dashboard
+   Read : Google Sheets "Publish to web" CSV
+   Write: Google Apps Script Web App (snapshot replace)
+   ============================================================ */
 
-// ══════════════════════════════════════════════
-// DEPT META & DATA
-// ══════════════════════════════════════════════
-const DEPT_META = {
-  'obs-gyne':{ label:'Obs-Gyne', color:'#ec4899' },
-  'surg':    { label:'Surgery',  color:'#06b6d4' },
-  'eye':     { label:'Eye',      color:'#22c55e' },
-  'ortho':   { label:'Ortho',    color:'#f97316' },
-  'ent':     { label:'ENT',      color:'#6366f1' },
-  'maxillo': { label:'Maxillo',  color:'#a855f7' },
-  'flexible':{ label:'Flexible', color:'#eab308' },
+const PASSWORD = "ormtp";
+
+const ROOMS = ["OR1","OR2","OR3","OR4","OR5","OR6","OR7"];
+const ROOM_DEPT = {
+  OR1:"obs-gyne", OR2:"surg", OR3:"surg", OR4:"eye",
+  OR5:"flexible", OR6:"ortho", OR7:"ent"
 };
-function minsAgo(m){const d=new Date();d.setMinutes(d.getMinutes()-m);return d;}
-function minsLater(m){const d=new Date();d.setMinutes(d.getMinutes()+m);return d;}
-function hoursAgo(h,m=0){const d=new Date();d.setHours(d.getHours()-h,d.getMinutes()-(m||0),0,0);return d;}
+const DEPT_META = {
+  "obs-gyne":{label:"OBS-GYNE", color:"var(--obs)"},
+  "surg":    {label:"SURGERY",  color:"var(--surg)"},
+  "eye":     {label:"EYE",      color:"var(--eye)"},
+  "ortho":   {label:"ORTHO",    color:"var(--ortho)"},
+  "ent":     {label:"ENT",      color:"var(--ent)"},
+  "flexible":{label:"FLEXIBLE", color:"var(--flex)"}
+};
+const DEFAULT_SURGEONS = [];
 
-let rooms = [
-  { id:'OR1', dept:'obs-gyne', doctor:'พญ.ภาวัช', status:'active',
-    current:{ name:'คุณจิราพร สุขสม', hn:'HN-2406001', proc:'Cesarean Section', start:minsAgo(72), end:minsLater(48), note:'' },
-    waiting:[
-      { name:'คุณสุนิสา มาลัย',  hn:'HN-2406021', proc:'Hysteroscopy',  note:'', surgeon:'พญ.ภาวัช', age:32, anesthesia:'GA' },
-      { name:'คุณรัตนา ดีใจ',    hn:'HN-2406034', proc:'D&C',           note:'NPO ครบ', surgeon:'พญ.ภาวัช', age:28, anesthesia:'SB' },
-    ],
-    completed:[
-      { name:'คุณวรรณา สวัสดี',  hn:'HN-2406009', proc:'LSCS', startedAt:hoursAgo(4,30), endedAt:hoursAgo(3), note:'' },
-    ]
-  },
-  { id:'OR2', dept:'surg', doctor:'นพ.ศิวทัต ก้องเกียรติ', status:'active',
-    current:{ name:'คุณสมชาย ใจดี', hn:'HN-2406002', proc:'Open Cholecystectomy', start:minsAgo(38), end:minsLater(85), note:'' },
-    waiting:[
-      { name:'คุณประทีป บุญมี',  hn:'HN-2406022', proc:'Inguinal Hernia Repair', note:'', surgeon:'นพ.ศิวทัต ก้องเกียรติ', age:55, anesthesia:'SB' },
-      { name:'คุณวินัย สุขใจ',   hn:'HN-2406035', proc:'Appendectomy',           note:'Acute', surgeon:'นพ.ศิวทัต ก้องเกียรติ', age:23, anesthesia:'GA' },
-      { name:'คุณมนัส ยอดดี',    hn:'HN-2406048', proc:'Lap Chole',              note:'', surgeon:'นพ.ศิวทัต ก้องเกียรติ', age:47, anesthesia:'GA' },
-    ],
-    completed:[
-      { name:'คุณอนันต์ แก้วดี', hn:'HN-2406010', proc:'Colostomy',    startedAt:hoursAgo(5), endedAt:hoursAgo(3,30), note:'' },
-      { name:'คุณพงษ์ศักดิ์ ดี', hn:'HN-2406011', proc:'Sigmoidectomy', startedAt:hoursAgo(3,20), endedAt:hoursAgo(1,40), note:'' },
-    ]
-  },
-  { id:'OR3', dept:'surg', doctor:'พญ.ณัฐพร วิชณะ', status:'turnover',
-    current:null,
-    waiting:[
-      { name:'คุณกมล ศรีสุข',  hn:'HN-2406023', proc:'Lap Chole',     note:'เตรียมพร้อม', surgeon:'พญ.ณัฐพร วิชณะ', age:61, anesthesia:'GA' },
-      { name:'คุณสุภาพ ดีงาม', hn:'HN-2406036', proc:'Thyroidectomy', note:'', surgeon:'พญ.ณัฐพร วิชณะ', age:44, anesthesia:'GA' },
-    ],
-    completed:[
-      { name:'คุณสมศรี ใสสะอาด', hn:'HN-2406012', proc:'Mastectomy', startedAt:hoursAgo(3), endedAt:hoursAgo(1,10), note:'' },
-    ]
-  },
-  { id:'OR4', dept:'eye', doctor:'พญ.จอมขวัญ อภิชญา', status:'active',
-    current:{ name:'คุณวิภา มีสุข', hn:'HN-2406004', proc:'Phacoemulsification L', start:minsAgo(25), end:minsLater(35), note:'' },
-    waiting:[
-      { name:'คุณสมหมาย ดีจริง', hn:'HN-2406024', proc:'Phacoemulsification R', note:'', surgeon:'พญ.จอมขวัญ อภิชญา', age:68, anesthesia:'LA' },
-      { name:'คุณนงนุช แจ่มใส',  hn:'HN-2406037', proc:'Trabeculectomy',        note:'Glaucoma', surgeon:'พญ.จอมขวัญ อภิชญา', age:72, anesthesia:'LA' },
-      { name:'คุณเฉลิม ยิ้มแย้ม', hn:'HN-2406049', proc:'Phaco R',              note:'', surgeon:'พญ.จอมขวัญ อภิชญา', age:75, anesthesia:'LA' },
-      { name:'คุณสาวิตรี สดใส',   hn:'HN-2406055', proc:'Phaco L',              note:'', surgeon:'พญ.จอมขวัญ อภิชญา', age:70, anesthesia:'LA' },
-    ],
-    completed:[
-      { name:'คุณบุญมา หน้าใส', hn:'HN-2406013', proc:'Phaco R', startedAt:hoursAgo(2,40), endedAt:hoursAgo(2,10), note:'' },
-      { name:'คุณลัดดา จริงใจ', hn:'HN-2406014', proc:'Phaco L', startedAt:hoursAgo(2,5),  endedAt:hoursAgo(1,35), note:'' },
-    ]
-  },
-  { id:'OR5', dept:'flexible', doctor:'', status:'idle', current:null, waiting:[], completed:[] },
-  { id:'OR6', dept:'ortho', doctor:'นพ.พงษ์พันธุ์', status:'active',
-    current:{ name:'คุณธนกร รักดี', hn:'HN-2406006', proc:'TKR Left', start:minsAgo(110), end:minsLater(30), note:'' },
-    waiting:[
-      { name:'คุณประสงค์ มั่นคง', hn:'HN-2406025', proc:'Hip Arthroplasty', note:'ผ่าตัดใหญ่', surgeon:'นพ.พงษ์พันธุ์', age:64, anesthesia:'SB' },
-    ],
-    completed:[
-      { name:'คุณสมหวัง แกร่งกล้า', hn:'HN-2406015', proc:'ORIF Femur', startedAt:hoursAgo(5,30), endedAt:hoursAgo(3), note:'' },
-    ]
-  },
-  { id:'OR7', dept:'ent', doctor:'พญ.ณัฐธิดา โลสกณ', status:'active',
-    current:{ name:'คุณมาลี สดใส', hn:'HN-2406007', proc:'FESS', start:minsAgo(50), end:minsLater(40), note:'GA' },
-    waiting:[
-      { name:'คุณสุรพงษ์ ไกรลาส', hn:'HN-2406026', proc:'Tonsillectomy', note:'', surgeon:'พญ.ณัฐธิดา โลสกณ', age:18, anesthesia:'GA' },
-      { name:'คุณอรุณี แสงใส',     hn:'HN-2406038', proc:'Septoplasty',   note:'', surgeon:'พญ.ณัฐธิดา โลสกณ', age:35, anesthesia:'GA' },
-    ],
-    completed:[
-      { name:'คุณธีรศักดิ์ แน่นหนา', hn:'HN-2406017', proc:'Myringoplasty', startedAt:hoursAgo(3,10), endedAt:hoursAgo(2,20), note:'' },
-    ]
-  },
-];
+const LS = {
+  csv:"orm_csv", script:"orm_script", interval:"orm_interval",
+  surgeons:"orm_surgeons", overrides:"orm_overrides", rotate:"orm_rotate"
+};
 
-// ══════════════════════════════════════════════
-// HELPERS
-// ══════════════════════════════════════════════
-function elapsed(start){
-  if(!start) return null;
-  const s=Math.floor((new Date()-start)/1000);
-  return `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
-}
-function progress(start,end){
-  if(!start||!end) return 0;
-  return Math.min(100,Math.max(0,Math.round(((new Date()-start)/(end-start))*100)));
-}
-function toHHMM(d){ return d?d.toTimeString().slice(0,5):'—'; }
-function parseTimeStr(s){
-  if(!s||!s.includes(':')) return null;
-  const[h,m]=s.split(':'); if(isNaN(+h)) return null;
-  const d=new Date(); d.setHours(+h,+m||0,0,0); return d;
-}
-function nowHHMM(){ return new Date().toTimeString().slice(0,5); }
+/* ---------- state ---------- */
+let state = {
+  remote: [],        // cases parsed from CSV
+  overrides: {},     // id -> case object OR {__deleted:true}; added cases too
+  unlocked: false,
+  pollTimer: null,
+  rotate: false,
+  rotateTimer: null,
+  page: 0,
+  pagesCount: 1,
+  graceUntil: 0,     // ignore CSV overwrites until this time (after a push)
+  editingId: null,
+  editingType: "current"
+};
 
-// ══════════════════════════════════════════════
-// CLOCK
-// ══════════════════════════════════════════════
-const DAYS=['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
-const MONTHS=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-function updateClock(){
-  const d=new Date();
-  document.getElementById('clock').textContent=d.toTimeString().slice(0,8);
-  document.getElementById('dateLabel').textContent=
-    `วัน${DAYS[d.getDay()]}ที่ ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()+543}`;
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const cfg = {
+  get csv(){return localStorage.getItem(LS.csv)||""},
+  set csv(v){localStorage.setItem(LS.csv,v)},
+  get script(){return localStorage.getItem(LS.script)||""},
+  set script(v){localStorage.setItem(LS.script,v)},
+  get interval(){return parseInt(localStorage.getItem(LS.interval)||"15",10)},
+  set interval(v){localStorage.setItem(LS.interval,String(v))},
+};
+function getSurgeons(){
+  try{return JSON.parse(localStorage.getItem(LS.surgeons))||DEFAULT_SURGEONS.slice()}
+  catch(e){return DEFAULT_SURGEONS.slice()}
 }
-setInterval(updateClock,1000); updateClock();
+function setSurgeons(arr){localStorage.setItem(LS.surgeons,JSON.stringify(arr))}
+function loadOverrides(){
+  try{state.overrides=JSON.parse(localStorage.getItem(LS.overrides))||{}}catch(e){state.overrides={}}
+}
+function saveOverrides(){localStorage.setItem(LS.overrides,JSON.stringify(state.overrides))}
 
-// ══════════════════════════════════════════════
-// GOOGLE SHEETS SYNC
-// ══════════════════════════════════════════════
+function toast(msg,kind){
+  const t=$("toast"); t.textContent=msg; t.className="toast show "+(kind||"");
+  clearTimeout(t._t); t._t=setTimeout(()=>t.className="toast",2600);
+}
+
+/* ---------- stable id for a case ---------- */
+function caseId(c){
+  if(c.id) return c.id;
+  return [c.room||"",c.type||"",c.order||"",c.hn||"",c.patientName||""].join("|");
+}
+
+/* ---------- CSV parsing ---------- */
 function parseCSV(text){
-  const lines=text.trim().split(/\r?\n/); if(lines.length<2) return [];
-  const headers=parseCSVLine(lines[0]).map(h=>h.trim());
-  return lines.slice(1).map(line=>{
-    const vals=parseCSVLine(line); const obj={};
-    headers.forEach((h,i)=>{ obj[h]=(vals[i]||'').trim(); }); return obj;
-  }).filter(r=>r['ห้อง']&&r['ห้อง'].startsWith('OR'));
-}
-function parseCSVLine(line){
-  const res=[]; let cur='',inQ=false;
-  for(let i=0;i<line.length;i++){
-    const c=line[i];
-    if(c==='"'){inQ=!inQ;continue;} if(c===','&&!inQ){res.push(cur);cur='';continue;} cur+=c;
-  } res.push(cur); return res;
-}
-// สร้าง object ห้องจากแถว CSV (pure) — ใช้ค่าเดิมของ rm เป็น fallback
-function buildRoomFromRows(rm, rr){
-  const out={ id:rm.id, dept:rm.dept, doctor:'', status:'idle', current:null, waiting:[], completed:[] };
-  if(!rr.length) return out;            // ไม่มีแถวในชีต = ห้องว่าง
-  const first=rr[0];
-  out.dept=first['แผนก']||rm.dept;
-  const curRow=rr.find(r=>r['ประเภท']==='current');
-  out.doctor=(curRow&&curRow['แพทย์'])||first['แพทย์']||'';
-  if(curRow){
-    out.status=curRow['สถานะห้อง']||'active';
-    out.current={
-      name:curRow['ชื่อผู้ป่วย']||'', hn:curRow['HN']||'', proc:curRow['หัตถการ']||'',
-      age:curRow['อายุ']?parseInt(curRow['อายุ']):'', anesthesia:curRow['Anesthesia']||curRow['anesthesia']||'',
-      start:parseTimeStr(curRow['เวลาเริ่ม']), end:parseTimeStr(curRow['เวลาสิ้นสุด']), note:curRow['หมายเหตุ']||''
-    };
-  } else {
-    out.status=first['สถานะห้อง']||(rr.some(r=>r['ประเภท']==='waiting')?'turnover':'idle');
-  }
-  out.waiting=rr.filter(r=>r['ประเภท']==='waiting')
-    .sort((a,b)=>(+a['ลำดับ']||99)-(+b['ลำดับ']||99))
-    .map(r=>({name:r['ชื่อผู้ป่วย']||'',hn:r['HN']||'',proc:r['หัตถการ']||'',note:r['หมายเหตุ']||'',
-      age:r['อายุ']?parseInt(r['อายุ']):'',anesthesia:r['Anesthesia']||r['anesthesia']||'',surgeon:r['แพทย์']||''}));
-  out.completed=rr.filter(r=>r['ประเภท']==='done')
-    .map(r=>({name:r['ชื่อผู้ป่วย']||'',hn:r['HN']||'',proc:r['หัตถการ']||'',
-      age:r['อายุ']?parseInt(r['อายุ']):'',anesthesia:r['Anesthesia']||r['anesthesia']||'',
-      startedAt:parseTimeStr(r['เวลาเริ่ม']),endedAt:parseTimeStr(r['เวลาสิ้นสุด']),note:r['หมายเหตุ']||''}));
-  return out;
-}
-function mergeSheetData(rows){
-  if(!rows.length) return;              // ป้องกัน CSV ว่างชั่วคราว (กำลังแก้ชีต) มาล้างข้อมูล
-  const byRoom={};
-  rows.forEach(r=>{ const id=r['ห้อง']; if(!byRoom[id]) byRoom[id]=[]; byRoom[id].push(r); });
-  rooms.forEach(rm=>{
-    const sheetRoom=buildRoomFromRows(rm, byRoom[rm.id]||[]);
-    if(localEdits[rm.id]){
-      // ถ้า Sheet ตามทันสถานะ local แล้ว → ปลดล็อก เพื่อให้รอบหน้ารับค่าจาก Sheet ได้ตามปกติ
-      if(sigOf(sheetRoom)===sigOf(rm)) delete localEdits[rm.id];
-      return;                           // รอบนี้ยังยึด local ไว้ก่อน
+  const rows=[]; let row=[],cur="",q=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(q){
+      if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; }
+      else cur+=ch;
+    }else{
+      if(ch==='"') q=true;
+      else if(ch===','){row.push(cur);cur="";}
+      else if(ch==='\n'){row.push(cur);rows.push(row);row=[];cur="";}
+      else if(ch==='\r'){/*skip*/}
+      else cur+=ch;
     }
-    rm.dept=sheetRoom.dept; rm.doctor=sheetRoom.doctor; rm.status=sheetRoom.status;
-    rm.current=sheetRoom.current; rm.waiting=sheetRoom.waiting; rm.completed=sheetRoom.completed;
-  });
-  updateSurgeonFilter();
-}
-async function fetchSheet(url){
-  if(!url) return;
-  setSyncState('loading');
-  // ── Fast path: ดึงจาก Apps Script GET (ไม่มี cache) ──
-  if(writeUrl){
-    try{
-      const resp=await fetch(writeUrl+'?action=getData&_='+Date.now(),{cache:'no-store'});
-      if(!resp.ok) throw new Error('HTTP '+resp.status);
-      const j=await resp.json();
-      if(j.ok && Array.isArray(j.rows)){
-        mergeSheetData(j.rows);
-        lastSyncTime=new Date(); setSyncState('live');
-        buildTicker(); renderAll();
-        return;
-      }
-    }catch(e){ console.warn('Apps Script GET:',e); }
   }
-  // ── Fallback: Published CSV (cache ~1–5 min) ──
-  if(!url) return;
-  try{
-    const bust=(url.includes('?')?'&':'?')+'_='+Date.now();
-    const resp=await fetch(url+bust,{cache:'no-store'});
-    if(!resp.ok) throw new Error('HTTP '+resp.status);
-    const csv=await resp.text();
-    mergeSheetData(parseCSV(csv));
-    lastSyncTime=new Date(); setSyncState('live');
-    buildTicker(); renderAll();
-  }catch(e){ console.warn('CSV fetch:',e); setSyncState('error'); }
-}
-function setSyncState(state){
-  syncState=state;
-  const el=document.getElementById('syncStatus');
-  const txt=document.getElementById('syncText');
-  el.className='sync-status sync-'+({live:'live',error:'error',loading:'loading',off:'off'}[state]||'off');
-  const labels={live:'Live ✓',error:'เชื่อมต่อไม่ได้',loading:'กำลังโหลด...',off:'ไม่ได้เชื่อมต่อ'};
-  txt.textContent=(labels[state]||'')+(lastSyncTime?` · ${lastSyncTime.toTimeString().slice(0,5)}`:'');
-}
-function startPolling(){
-  if(pollTimer) clearInterval(pollTimer);
-  if(!sheetUrl) return;
-  fetchSheet(sheetUrl);
-  pollTimer=setInterval(()=>fetchSheet(sheetUrl),pollIntervalS*1000);
-}
-
-// ══════════════════════════════════════════════
-// PASSWORD / LOCK
-// ══════════════════════════════════════════════
-function toggleLock(){
-  if(isUnlocked){ lock(); return; }
-  pendingPwAction=null;
-  openModal('pwModal');
-  setTimeout(()=>{ document.getElementById('pwInput').value=''; document.getElementById('pwError').textContent=''; document.getElementById('pwInput').focus(); },50);
-}
-function requireUnlock(cb){
-  if(isUnlocked){ cb(); return; }
-  pendingPwAction=cb;
-  openModal('pwModal');
-  setTimeout(()=>{ document.getElementById('pwInput').value=''; document.getElementById('pwError').textContent=''; document.getElementById('pwInput').focus(); },50);
-}
-function submitPw(){
-  if(document.getElementById('pwInput').value===CORRECT_PW){
-    isUnlocked=true;
-    document.getElementById('lockBtn').textContent='🔓';
-    document.getElementById('lockBtn').classList.add('active');
-    closeModal('pwModal');
-    if(pendingPwAction){ pendingPwAction(); pendingPwAction=null; }
-    renderAll();
-  } else {
-    document.getElementById('pwError').textContent='รหัสไม่ถูกต้อง';
-    document.getElementById('pwInput').value='';
-    document.getElementById('pwInput').focus();
-  }
-}
-function lock(){
-  isUnlocked=false;
-  document.getElementById('lockBtn').textContent='🔒';
-  document.getElementById('lockBtn').classList.remove('active');
-  renderAll();
-}
-
-// ══════════════════════════════════════════════
-// SETTINGS
-// ══════════════════════════════════════════════
-function openSettings(){
-  document.getElementById('sheetUrlInput').value=sheetUrl;
-  document.getElementById('pollIntervalInput').value=String(pollIntervalS);
-  document.getElementById('writeUrlInput').value=writeUrl;
-  document.getElementById('testResult').style.display='none';
-  openModal('settingsModal');
-}
-async function testSheet(){
-  const url=document.getElementById('sheetUrlInput').value.trim();
-  const res=document.getElementById('testResult');
-  res.style.display='none';
-  if(!url){ res.className='test-result test-err'; res.textContent='กรุณาใส่ URL'; res.style.display='block'; return; }
-  res.className='test-result'; res.textContent='กำลังทดสอบ...'; res.style.display='block';
-  try{
-    const r=await fetch(url,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status);
-    const rows=parseCSV(await r.text());
-    res.className='test-result test-ok'; res.textContent=`✓ สำเร็จ — ${rows.length} แถว`;
-  }catch(e){ res.className='test-result test-err'; res.textContent='✗ '+e.message; }
-  res.style.display='block';
-}
-function clearLocalEditsForNewDay(){
-  if(!confirm('ล้าง local edits ทั้งหมด?\nDashboard จะดึงข้อมูลจาก Google Sheet ใหม่ทุกห้อง')) return;
-  localEdits={};
-  closeModal('settingsModal');
-  if(sheetUrl){
-    rooms=blankRooms();          // เคลียร์ห้องที่ค้าง แล้วค่อยรับค่าจาก Sheet ใหม่
-    initRoomToggles(); renderAll();
-    fetchSheet(sheetUrl);
-  } else {
-    renderAll();
-  }
-}
-
-function saveSettings(){
-  sheetUrl=document.getElementById('sheetUrlInput').value.trim();
-  pollIntervalS=parseInt(document.getElementById('pollIntervalInput').value)||15;
-  writeUrl=document.getElementById('writeUrlInput').value.trim();
-  localStorage.setItem('sheetUrl',sheetUrl); localStorage.setItem('pollInterval',String(pollIntervalS));
-  localStorage.setItem('writeUrl',writeUrl);
-  closeModal('settingsModal');
-  if(sheetUrl) startPolling(); else setSyncState('off');
-}
-
-// ══════════════════════════════════════════════
-// SHEET WRITE-BACK  (โมเดลใหม่: เขียนทับทั้งห้อง / replaceRoom)
-// ══════════════════════════════════════════════
-function hhmmOrEmpty(d){ return d?d.toTimeString().slice(0,5):''; }
-function ageVal(a){ return (a===0||a)?a:''; }   // เก็บ 0 ไว้ (ทารกแรกเกิด) แต่ '' / undefined → ''
-
-function syncToSheet(action, data) {
-  if(!writeUrl) return;
-  // no-cors เพื่อให้ทำงานได้แม้เปิดจาก file:// ; fire-and-forget
-  fetch(writeUrl, {method:'POST', mode:'no-cors', body:JSON.stringify({action,...data})}).catch(()=>{});
-}
-
-// แปลงสถานะทั้งห้อง → array ของ rows (current + waiting + done)
-function roomToRows(room){
-  const rows=[];
-  if(room.current){
-    rows.push({
-      room:room.id, dept:room.dept||'', doctor:room.doctor||'', status:room.status||'active',
-      type:'current', order:'',
-      name:room.current.name||'', hn:room.current.hn||'', age:ageVal(room.current.age),
-      anesthesia:room.current.anesthesia||'', proc:room.current.proc||'',
-      timeStart:hhmmOrEmpty(room.current.start), timeEnd:hhmmOrEmpty(room.current.end),
-      note:room.current.note||''
-    });
-  }
-  (room.waiting||[]).forEach((p,i)=>rows.push({
-    room:room.id, dept:room.dept||'', doctor:p.surgeon||room.doctor||'', status:room.status||'',
-    type:'waiting', order:i+1,
-    name:p.name||'', hn:p.hn||'', age:ageVal(p.age), anesthesia:p.anesthesia||'', proc:p.proc||'',
-    timeStart:'', timeEnd:'', note:p.note||''
-  }));
-  (room.completed||[]).forEach(p=>rows.push({
-    room:room.id, dept:room.dept||'', doctor:room.doctor||'', status:room.status||'',
-    type:'done', order:'',
-    name:p.name||'', hn:p.hn||'', age:ageVal(p.age), anesthesia:p.anesthesia||'', proc:p.proc||'',
-    timeStart:hhmmOrEmpty(p.startedAt), timeEnd:hhmmOrEmpty(p.endedAt), note:p.note||''
-  }));
+  if(cur!==""||row.length){row.push(cur);rows.push(row);}
   return rows;
 }
-
-// ส่งทั้งห้องไปเขียนทับใน Sheet + ล็อกห้องไว้จนกว่า CSV จะตามทัน
-function pushRoom(roomId){
-  const room=rooms.find(r=>r.id===roomId);
-  if(!room) return;
-  localEdits[roomId]=true;             // กัน poll มาเขียนทับก่อน Sheet จะอัปเดต
-  if(writeUrl) syncToSheet('replaceRoom', {room:roomId, rows:roomToRows(room)});
-}
-
-// ลายเซ็นสถานะห้อง — ใช้เทียบว่า Sheet "ตามทัน" สถานะ local แล้วหรือยัง
-function sigOf(r){
-  const empty=!r.current && !(r.waiting||[]).length && !(r.completed||[]).length;
-  if(empty) return 'EMPTY';   // ห้องว่าง: ไม่สนใจ doctor/dept เพื่อให้ปลดล็อกได้
-  const c=r.current?`C|${r.current.hn}|${r.current.proc}|${r.current.name}`:'C|-';
-  const w=(r.waiting||[]).map(p=>`${p.hn}|${p.proc}`).join('~');
-  const d=(r.completed||[]).map(p=>`${p.hn}|${p.proc}`).join('~');
-  return `${r.status}|${r.doctor}|${c}|W:${w}|D:${d}`;
-}
-
-// ══════════════════════════════════════════════
-// ROOM TOGGLES & SURGEON FILTER
-// ══════════════════════════════════════════════
-function initRoomToggles(){
-  document.getElementById('roomToggles').innerHTML=rooms.map(r=>
-    `<button class="rtog rtog-${r.dept} on" id="rtog-${r.id}" onclick="toggleRoom('${r.id}',this)">${r.id}</button>`
-  ).join('');
-}
-function toggleRoom(id,btn){
-  if(visibleRooms.has(id)){visibleRooms.delete(id);btn.classList.remove('on');}
-  else{visibleRooms.add(id);btn.classList.add('on');}
-  renderQueueDash();
-}
-function updateSurgeonFilter(){
-  const sel=document.getElementById('surgeonFilter');
-  const cur=sel.value;
-  const fromRooms=rooms.map(r=>r.doctor).filter(Boolean);
-  const fromCases=rooms.flatMap(r=>(r.waiting||[]).map(p=>p.surgeon).filter(Boolean));
-  const surgeons=[...new Set([...fromRooms,...fromCases,...doctors])].sort();
-  sel.innerHTML='<option value="">ทุกคน</option>'+surgeons.map(s=>`<option value="${s}">${s}</option>`).join('');
-  sel.value=cur;
-}
-function setView(mode){
-  qViewMode=mode;
-  document.getElementById('vtByRoom').classList.toggle('on',mode==='room');
-  document.getElementById('vtBySurgeon').classList.toggle('on',mode==='surgeon');
-  renderQueueDash();
-}
-
-// ══════════════════════════════════════════════
-// PROMOTE TO OR
-// ══════════════════════════════════════════════
-let promDurMin=60;
-function recalcPromoteEnd(){
-  const start=document.getElementById('pmStart').value;
-  const lbl=document.getElementById('pmDurLabel');
-  if(lbl) lbl.textContent=promDurMin+' นาที';
-  if(!start) return;
-  const [h,m]=start.split(':').map(Number);
-  const endMin=(h*60+m+promDurMin)%1440;
-  const eh=String(Math.floor(endMin/60)).padStart(2,'0');
-  const em=String(endMin%60).padStart(2,'0');
-  document.getElementById('pmEnd').value=`${eh}:${em}`;
-}
-function changeDur(delta){
-  promDurMin=Math.max(30,promDurMin+delta);
-  recalcPromoteEnd();
-}
-function openPromote(fromRoomId, waitingIdx, evt){
-  evt&&evt.stopPropagation();
-  requireUnlock(()=>{
-    promoteCtx={fromRoomId, waitingIdx};
-    const fromRoom=rooms.find(r=>r.id===fromRoomId);
-    const p=fromRoom.waiting[waitingIdx];
-    document.getElementById('pmProc').textContent=p.proc;
-    document.getElementById('pmPatient').textContent=`${p.name}  ·  ${p.hn}${p.note?' · ⚠ '+p.note:''}`;
-    document.getElementById('pmRoom').value=fromRoomId;
-    document.getElementById('pmStart').value=nowHHMM();
-    promDurMin=60;
-    recalcPromoteEnd();
-    updatePromoteWarn();
-    openModal('promoteModal');
-  });
-}
-function updatePromoteWarn(){
-  const roomId=document.getElementById('pmRoom').value;
-  const room=rooms.find(r=>r.id===roomId);
-  const warn=document.getElementById('pmWarn');
-  if(room&&room.current){
-    warn.style.display='block';
-    warn.innerHTML=`⚠ <strong>${roomId}</strong> มีผู้ป่วยกำลังผ่าตัดอยู่<br><strong>${room.current.name}</strong> · ${room.current.proc}<br>ผู้ป่วยรายนี้จะถูกย้ายไปยัง "เสร็จสิ้น" โดยอัตโนมัติ`;
-  } else { warn.style.display='none'; }
-}
-function endOperation(roomId, evt){
-  evt&&evt.stopPropagation();
-  requireUnlock(()=>{
-    const room=rooms.find(r=>r.id===roomId);
-    if(!room||!room.current) return;
-    if(!confirm(`สิ้นสุด Operation ของ ${room.current.name}?\n(${room.current.proc})`)) return;
-    if(!room.completed) room.completed=[];
-    room.completed.push({
-      name:room.current.name, hn:room.current.hn, proc:room.current.proc,
-      startedAt:room.current.start, endedAt:new Date(), note:room.current.note
-    });
-    room.current=null;
-    room.status=room.waiting&&room.waiting.length>0?'turnover':'idle';
-    pushRoom(roomId);
-    saveCurrentDateData(); buildTicker(); renderAll();
-  });
-}
-
-function confirmPromote(){
-  const{fromRoomId,waitingIdx}=promoteCtx;
-  const fromRoom=rooms.find(r=>r.id===fromRoomId);
-  const patient={...fromRoom.waiting[waitingIdx]};
-  const targetRoomId=document.getElementById('pmRoom').value;
-  const targetRoom=rooms.find(r=>r.id===targetRoomId);
-  const startTime=parseTimeStr(document.getElementById('pmStart').value)||new Date();
-  const endTime=parseTimeStr(document.getElementById('pmEnd').value);
-
-  // Move current → completed
-  if(targetRoom.current){
-    if(!targetRoom.completed) targetRoom.completed=[];
-    targetRoom.completed.push({
-      name:targetRoom.current.name, hn:targetRoom.current.hn, proc:targetRoom.current.proc,
-      startedAt:targetRoom.current.start, endedAt:new Date(), note:targetRoom.current.note
-    });
+const COLS=["room","dept","surgeon","roomStatus","type","order",
+            "patientName","hn","age","anesthesia","procedure","startTime","endTime","note"];
+function rowsToCases(rows){
+  if(!rows.length) return [];
+  const out=[];
+  // detect header (skip if first cell looks like header)
+  let start=0;
+  const first=(rows[0][0]||"").toLowerCase();
+  if(first.includes("ห้อง")||first.includes("room")) start=1;
+  for(let r=start;r<rows.length;r++){
+    const row=rows[r]; if(!row.length) continue;
+    if(row.every(x=>!String(x).trim())) continue;
+    const c={};
+    COLS.forEach((k,i)=>c[k]=(row[i]!==undefined?String(row[i]).trim():""));
+    if(!c.type) c.type=c.room?"waiting":"floating";
+    c.type=c.type.toLowerCase();
+    out.push(c);
   }
-  // Set new current
-  targetRoom.current={name:patient.name,hn:patient.hn,proc:patient.proc,start:startTime,end:endTime,note:patient.note||''};
-  targetRoom.status='active';
-  // Remove from source queue
-  fromRoom.waiting.splice(waitingIdx,1);
-  pushRoom(fromRoomId);
-  if(targetRoomId!==fromRoomId) pushRoom(targetRoomId);
-  closeModal('promoteModal');
-  saveCurrentDateData(); buildTicker(); renderAll();
+  return out;
 }
 
-// ══════════════════════════════════════════════
-// QUEUE REORDER
-// ══════════════════════════════════════════════
-function moveQueueItem(roomId, idx, dir, evt){
-  evt&&evt.stopPropagation();
-  const room=rooms.find(r=>r.id===roomId);
-  if(!room) return;
-  const w=room.waiting;
-  const newIdx=idx+dir;
-  if(newIdx<0||newIdx>=w.length) return;
-  // swap
-  [w[idx],w[newIdx]]=[w[newIdx],w[idx]];
-  pushRoom(roomId);
-  saveCurrentDateData(); renderQueueDash();
-}
-
-// ══════════════════════════════════════════════
-// QUEUE RENDER
-// ══════════════════════════════════════════════
-function renderQueueDash(){
-  const sf=(document.getElementById('surgeonFilter')||{}).value||'';
-  const grid=document.getElementById('queueGrid');
-  if(!grid) return;
-  const filtered=rooms.filter(r=>visibleRooms.has(r.id)&&(!sf||r.doctor===sf));
-  if(qViewMode==='surgeon'){ renderQueueBySurgeon(grid,filtered); return; }
-
-  grid.innerHTML=filtered.map(r=>{
-    const cur=r.current; const waiting=r.waiting||[]; const done=(r.completed||[]).length;
-    // สีตาม dept ของเคสที่ทำอยู่ → คิวถัดไป → flexible (ถ้าว่าง)
-    const effectiveDept = cur ? r.dept : (waiting.length ? r.dept : 'flexible');
-    const dm=DEPT_META[effectiveDept]||DEPT_META.flexible;
-    const pct=cur?progress(cur.start,cur.end):0;
-    const el=cur?elapsed(cur.start):'';
-    const localMark=localEdits[r.id]?`<span class="local-badge">★ local</span>`:'';
-
-    // ── Ongoing block ──
-    let opBlock='';
-    if(cur&&(r.status==='active'||r.status==='emergency')){
-      opBlock=`<div class="op-block">
-        <div class="op-label"><span class="op-live-dot"></span>กำลังผ่าตัด · ${r.doctor||'—'}</div>
-        <div class="op-proc">${cur.proc}</div>
-        <div class="op-patient">${cur.name}</div>
-        <div class="op-hn">${cur.hn}${cur.note?' · ⚠ '+cur.note:''}</div>
-        <div class="op-meta">
-          <div class="op-timer" style="color:${dm.color}" id="timer-${r.id}">${el}</div>
-          <div class="op-pct">${pct}%</div>
-        </div>
-        <div class="op-bar-wrap"><div class="op-progress" style="width:${pct}%" id="bar-${r.id}"></div></div>
-        <div class="op-times"><span>${toHHMM(cur.start)}</span><span>คาด ${toHHMM(cur.end)}</span></div>
-        <button class="end-op-btn${isUnlocked?' visible':''}" onclick="endOperation('${r.id}',event)">■ สิ้นสุด Operation</button>
-      </div>`;
-    } else if(r.status==='turnover'){
-      opBlock=`<div class="op-placeholder">⟳ เตรียมห้อง · คิวถัดไป: <strong>${waiting[0]?waiting[0].proc:'—'}</strong></div>`;
-    } else {
-      opBlock=`<div class="op-placeholder">${r.status==='hold'?'⏸ รอ (On Hold)':'○ ห้องว่าง'}</div>`;
-    }
-
-    // ── Waiting rows ──
-    let qhtml='';
-    if(!waiting.length){
-      qhtml=`<div class="qlist-empty">ไม่มีคิวรอ</div>`;
-    } else {
-      const n=waiting.length;
-      qhtml=waiting.map((p,i)=>`
-        <div class="qrow">
-          ${isUnlocked?`<div class="qrow-sort">
-            <button class="sort-btn" onclick="moveQueueItem('${r.id}',${i},-1,event)" ${i===0?'disabled':''}>▲</button>
-            <button class="sort-btn" onclick="moveQueueItem('${r.id}',${i},1,event)"  ${i===n-1?'disabled':''}>▼</button>
-          </div>`:''}
-          <div class="qrow-num" style="color:${dm.color}">${i+1}</div>
-          <div class="qrow-main">
-            <div class="qrow-proc">${p.proc}</div>
-            <div class="qrow-sub">${p.name}${p.age?' · อายุ '+p.age+' ปี':''}${p.anesthesia?' · '+p.anesthesia:''} · <span style="opacity:.6">${p.hn}</span></div>
-            ${p.note?`<div class="qrow-note">⚠ ${p.note}</div>`:''}
-          </div>
-          ${p.surgeon?`<div class="qrow-surgeon">👨‍⚕️ ${p.surgeon}</div>`:''}
-          <div class="qrow-btns">
-            ${isUnlocked?`<div class="qrow-edit-btns">
-              <button class="qrow-btn" onclick="openQEdit('${r.id}',${i},event)">✏️</button>
-              <button class="qrow-btn del" onclick="confirmDeleteQ('${r.id}',${i},event)">✕</button>
-            </div>`:''}
-            ${isUnlocked?`<button class="promote-btn" onclick="openPromote('${r.id}',${i},event)">▲ ขึ้นโต๊ะ</button>`:''}
-          </div>
-        </div>
-        ${i<n-1?'<div class="qdivider"></div>':''}
-      `).join('');
-    }
-
-    const addBtn=isUnlocked?`<button class="qadd-btn" onclick="openQAdd('${r.id}')">＋ เพิ่มผู้ป่วย</button>`:'';
-
-    return `<div class="qcard dept-${r.dept}" style="border-color:${dm.color}">
-      <div class="qcard-header">
-        <div class="qcard-room-wrap">
-          <div class="qcard-room" style="color:${dm.color}">${r.id}</div>
-          ${getBadge(r.status)}
-          ${localMark}
-        </div>
-        <div class="qcard-right">
-          <div class="qcard-dept" style="color:${dm.color}">${dm.label}</div>
-          <div class="qcard-doctor">${r.doctor||'—'}</div>
-        </div>
-      </div>
-      <div class="qcount-row">
-        <div class="qcount-box">
-          <div class="qcount-num" style="color:${dm.color}">${waiting.length}</div>
-          <div class="qcount-lbl">รอคิว</div>
-        </div>
-        <div class="qcount-div"></div>
-        <div class="qcount-box">
-          <div class="qcount-num" style="color:#4ade80">${cur?1:0}</div>
-          <div class="qcount-lbl">กำลังทำ</div>
-        </div>
-        <div class="qcount-div"></div>
-        <div class="qcount-box">
-          <div class="qcount-num" style="color:#38bdf8">${done}</div>
-          <div class="qcount-lbl">เสร็จแล้ว</div>
-        </div>
-      </div>
-      ${opBlock}
-      <div class="q-section-label">
-        <span>คิวรอ</span>
-        <span style="color:${dm.color}">${waiting.length} ราย</span>
-      </div>
-      <div class="qlist">${qhtml}</div>
-      ${addBtn}
-    </div>`;
-  }).join('');
-}
-
-function getBadge(s){
-  const map={active:'badge-active',turnover:'badge-turnover',idle:'badge-idle',hold:'badge-hold',emergency:'badge-emergency'};
-  const label={active:'● Active',turnover:'◐ เตรียมห้อง',idle:'○ ว่าง',hold:'⏸ รอ',emergency:'🚨 Emergency'};
-  return `<span class="status-badge ${map[s]||'badge-idle'}">${label[s]||'○ ว่าง'}</span>`;
-}
-
-function renderQueueBySurgeon(grid,filtered){
-  const byDoc={};
-  filtered.forEach(r=>{
-    const doc=r.doctor||'(ไม่ระบุแพทย์)';
-    if(!byDoc[doc]) byDoc[doc]={doctor:doc,dept:r.dept,rooms:[],patients:[]};
-    byDoc[doc].rooms.push(r.id);
-    if(r.current) byDoc[doc].patients.push({type:'current',room:r.id,dept:r.dept,...r.current});
-    (r.waiting||[]).forEach((p,i)=>byDoc[doc].patients.push({type:'waiting',room:r.id,dept:r.dept,...p,qpos:i+1,fromRoom:r.id,idx:i}));
-    (r.completed||[]).forEach(p=>byDoc[doc].patients.push({type:'done',room:r.id,dept:r.dept,...p}));
+/* ---------- merge remote + overrides ---------- */
+function mergedCases(){
+  const map={};
+  state.remote.forEach(c=>{map[caseId(c)]=Object.assign({},c);});
+  Object.keys(state.overrides).forEach(id=>{
+    const ov=state.overrides[id];
+    if(ov && ov.__deleted){ delete map[id]; }
+    else { map[id]=Object.assign({},ov); }
   });
-  grid.innerHTML=Object.values(byDoc).map(s=>{
-    const dm=DEPT_META[s.dept]||DEPT_META.flexible;
-    const chips=s.rooms.map(rid=>{const rm=rooms.find(r=>r.id===rid);const d=DEPT_META[rm?rm.dept:'flexible']||DEPT_META.flexible;return `<span class="sroom-chip" style="color:${d.color}">${rid}</span>`;}).join('');
-    const rows=s.patients.map(p=>{
-      const d=DEPT_META[p.dept]||DEPT_META.flexible;
-      const tl=p.type==='current'?`<span class="sc-type sc-current">● กำลังผ่าตัด</span>`:
-        p.type==='waiting'?`<span class="sc-type sc-waiting">🟡 คิว #${p.qpos}</span>`:
-        `<span class="sc-type sc-done">✓ เสร็จ</span>`;
-      const promBtn=p.type==='waiting'&&isUnlocked?`<button class="promote-btn" style="font-size:.65rem;padding:3px 7px;" onclick="openPromote('${p.fromRoom}',${p.idx},event)">▲ ขึ้นโต๊ะ</button>`:'';
-      return `<tr>
-        <td class="sc-num">${p.type==='waiting'?p.qpos:''}</td>
-        <td class="sc-room" style="color:${d.color}">${p.room}</td>
-        <td>${p.proc}</td>
-        <td style="font-size:.68rem;color:var(--muted)">${p.name}</td>
-        <td>${tl}</td>
-        <td>${promBtn}</td>
-      </tr>`;
-    }).join('');
-    return `<div class="scard">
-      <div class="scard-header">
-        <div class="scard-name">👨‍⚕️ ${s.doctor}</div>
-        <div class="scard-rooms">${chips}</div>
-      </div>
-      <table class="scard-table"><tbody>${rows||'<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:10px">ไม่มีข้อมูล</td></tr>'}</tbody></table>
-    </div>`;
-  }).join('');
+  return Object.values(map);
 }
 
-// live-update timers in queue without full re-render
-function updateQueueTimers(){
-  rooms.forEach(r=>{
-    const cur=r.current; if(!cur) return;
-    const tEl=document.getElementById('timer-'+r.id);
-    const bEl=document.getElementById('bar-'+r.id);
-    if(tEl) tEl.textContent=elapsed(cur.start)||'';
-    if(bEl) bEl.style.width=progress(cur.start,cur.end)+'%';
-  });
+/* ============================================================
+   FETCH / SYNC
+   ============================================================ */
+function setStatus(kind,text){
+  const el=$("status"); el.className="status "+kind; $("statusText").textContent=text;
 }
-// live-update timers in patient list without full re-render (กัน scroll เด้ง)
-function updateListTimers(){
-  rooms.forEach(r=>{
-    if(!r.current) return;
-    const el=document.getElementById('lt-'+r.id);
-    if(el) el.textContent=elapsed(r.current.start)||'';
-  });
-}
-
-// ══════════════════════════════════════════════
-// PATIENT LIST RENDER
-// ══════════════════════════════════════════════
-function setFilter(f,btn){
-  listFilter=f;
-  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  renderList();
-}
-function buildAllPatients(){
-  const all=[];
-  rooms.forEach(r=>{
-    const dm=DEPT_META[r.dept]||DEPT_META.flexible;
-    if(r.current) all.push({type:'ongoing',room:r.id,dept:r.dept,color:dm.color,
-      name:r.current.name,hn:r.current.hn,proc:r.current.proc,doctor:r.doctor,
-      startTime:r.current.start,endTime:r.current.end,note:r.current.note,age:r.current.age,anesthesia:r.current.anesthesia});
-    (r.waiting||[]).forEach((p,i)=>all.push({type:'waiting',room:r.id,dept:r.dept,color:dm.color,
-      name:p.name,hn:p.hn,proc:p.proc,doctor:r.doctor,startTime:null,endTime:null,note:p.note,age:p.age,anesthesia:p.anesthesia,queuePos:i+1}));
-    (r.completed||[]).forEach((p,ci)=>all.push({type:'done',room:r.id,dept:r.dept,color:dm.color,
-      name:p.name,hn:p.hn,proc:p.proc,doctor:r.doctor,startTime:p.startedAt,endTime:p.endedAt,note:p.note,age:p.age,anesthesia:p.anesthesia,completedIdx:ci}));
-  });
-  return all;
-}
-function renderList(){
-  const all=buildAllPatients();
-  const q=(document.getElementById('searchInput').value||'').toLowerCase();
-  const rf=(document.getElementById('roomFilter')||{}).value||'';
-  const og=all.filter(p=>p.type==='ongoing');
-  const wt=all.filter(p=>p.type==='waiting');
-  const dn=all.filter(p=>p.type==='done');
-  ['cnt-all','cnt-ongoing','cnt-waiting','cnt-done'].forEach((id,i)=>{
-    document.getElementById(id).textContent=[all,og,wt,dn][i].length;
-  });
-  document.getElementById('s-ongoing').textContent=og.length;
-  document.getElementById('s-waiting').textContent=wt.length;
-  document.getElementById('s-done').textContent=dn.length;
-  let filtered=all.filter(p=>{
-    if(listFilter==='ongoing'&&p.type!=='ongoing') return false;
-    if(listFilter==='waiting'&&p.type!=='waiting') return false;
-    if(listFilter==='done'&&p.type!=='done') return false;
-    if(rf&&p.room!==rf) return false;
-    if(q&&!`${p.name} ${p.hn} ${p.proc} ${p.doctor}`.toLowerCase().includes(q)) return false;
-    return true;
-  });
-  const scroll=document.getElementById('listScroll');
-  if(listFilter==='all'){
-    scroll.innerHTML=[
-      {title:'กำลังผ่าตัด',dc:'dot-ongoing',items:filtered.filter(p=>p.type==='ongoing')},
-      {title:'รอคิว',dc:'dot-waiting',items:filtered.filter(p=>p.type==='waiting')},
-      {title:'เสร็จแล้ววันนี้',dc:'dot-done',items:filtered.filter(p=>p.type==='done')},
-    ].map(s=>s.items.length?`<div class="section-block">
-      <div class="section-title"><span class="sdot ${s.dc}"></span>${s.title} (${s.items.length})</div>
-      ${buildTable(s.items)}</div>`:''
-    ).join('');
-  } else {
-    scroll.innerHTML=filtered.length?buildTable(filtered):`<div style="text-align:center;padding:40px;color:var(--muted);font-size:.85rem;">ไม่พบข้อมูล</div>`;
-  }
-}
-function buildTable(rows){
-  const cols=[{key:'room',label:'ห้อง'},{key:'dept',label:'แผนก'},{key:'hn',label:'HN'},
-    {key:'name',label:'ชื่อผู้ป่วย'},{key:'age',label:'อายุ'},{key:'anesthesia',label:'Anesthesia'},{key:'proc',label:'หัตถการ'},{key:'doctor',label:'แพทย์'},
-    {key:'status',label:'สถานะ'},{key:'time',label:'เวลา'}];
-  const thead=`<thead><tr>${cols.map(c=>`<th onclick="sortBy('${c.key}')" class="${sortCol===c.key?'sorted':''}">${c.label}<span class="sort-arrow">${sortCol===c.key?(sortDir>0?'↑':'↓'):'↕'}</span></th>`).join('')}${isUnlocked?'<th style="width:100px"></th>':''}</tr></thead>`;
-  let sorted=[...rows].sort((a,b)=>{
-    let av=sortCol==='time'?(a.startTime||0):(a[sortCol]||'');
-    let bv=sortCol==='time'?(b.startTime||0):(b[sortCol]||'');
-    return av<bv?-sortDir:av>bv?sortDir:0;
-  });
-  const tbody=`<tbody>${sorted.map(p=>{
-    const dm=DEPT_META[p.dept]||DEPT_META.flexible;
-    const stl=p.type==='ongoing'?`<span class="status-badge badge-active">● กำลังผ่าตัด</span>`:
-      p.type==='waiting'?`<span class="status-badge badge-turnover">🟡 รอ #${p.queuePos}</span>`:
-      `<span class="status-badge badge-idle">✓ เสร็จ</span>`;
-    const tc=p.type==='ongoing'&&p.startTime?
-      `<div class="time-cell">${toHHMM(p.startTime)} → ${toHHMM(p.endTime)}</div><div class="elapsed-cell" id="lt-${p.room}">${elapsed(p.startTime)||''}</div>`:
-      p.type==='done'&&p.startTime?
-      `<div class="time-cell">${toHHMM(p.startTime)} → ${toHHMM(p.endTime)}</div>`:
-      `<span class="time-cell" style="color:var(--muted)">รอคิว</span>`;
-    const actBtn=isUnlocked?(
-      p.type==='waiting'?`<button class="qrow-btn" onclick="openQEdit('${p.room}',${p.queuePos-1},event)">✏️</button>`:
-      p.type==='ongoing'?`<button class="qrow-btn" onclick="openEditPatient('ongoing','${p.room}',-1,event)">✏️</button>`:
-      `<button class="qrow-btn" onclick="openEditPatient('done','${p.room}',${p.completedIdx},event)">✏️</button> <button class="qrow-btn" style="color:#fbbf24;border-color:rgba(245,158,11,.4)" title="ย้อนกลับเป็นกำลังผ่าตัด" onclick="undoCompleted('${p.room}',${p.completedIdx},event)">↩</button>`
-    ):'';
-    return `<tr class="row-${p.dept}">
-      <td><span class="room-chip" style="color:${dm.color}">${p.room}</span></td>
-      <td><span class="dept-pill pill-${p.dept}">${dm.label}</span></td>
-      <td class="hn-cell">${p.hn}</td>
-      <td>${p.name}${p.note?`<div class="note-small">${p.note}</div>`:''}</td>
-      <td class="time-cell" style="color:var(--muted)">${p.age!==undefined&&p.age!==''?p.age+' ปี':'—'}</td>
-      <td class="time-cell">${p.anesthesia||'—'}</td>
-      <td class="proc-cell">${p.proc}</td>
-      <td class="time-cell">${p.doctor||'—'}</td>
-      <td>${stl}</td><td>${tc}</td>
-      ${isUnlocked?`<td style="white-space:nowrap">${actBtn}</td>`:''}
-    </tr>`;
-  }).join('')}</tbody>`;
-  return `<table class="pt-table">${thead}${tbody}</table>`;
-}
-function sortBy(col){ if(sortCol===col) sortDir*=-1; else{sortCol=col;sortDir=1;} renderList(); }
-
-// ══════════════════════════════════════════════
-// QUEUE ITEM EDIT
-// ══════════════════════════════════════════════
-function refreshSurgeonSelect(currentVal){
-  const sel=document.getElementById('qfSurgeon');
-  if(!sel) return;
-  sel.innerHTML='<option value="">(ไม่ระบุแพทย์)</option>'+
-    doctors.map(d=>`<option value="${d}"${d===currentVal?' selected':''}>${d}</option>`).join('');
-}
-function openQAdd(roomId){
-  qEditContext={roomId,idx:-1,isNew:true};
-  const r=rooms.find(x=>x.id===roomId);
-  document.getElementById('qEditTitle').textContent='➕ เพิ่มผู้ป่วยเข้าคิว';
-  document.getElementById('qfRoom').value=roomId;
-  document.getElementById('qfOrder').value=(r&&r.waiting?r.waiting.length+1:1);
-  ['qfName','qfHN','qfProc','qfNote','qfAge'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('qfAnesthesia').value='';
-  refreshSurgeonSelect(r&&r.doctor?r.doctor:'');
-  document.getElementById('qEditDelBtn').style.display='none';
-  openModal('qEditModal');
-}
-function openQEdit(roomId,idx,evt){
-  evt&&evt.stopPropagation();
-  qEditContext={roomId,idx,isNew:false};
-  const p=rooms.find(x=>x.id===roomId).waiting[idx];
-  document.getElementById('qEditTitle').textContent='✏️ แก้ไขคิว';
-  document.getElementById('qfRoom').value=roomId;
-  document.getElementById('qfOrder').value=idx+1;
-  document.getElementById('qfName').value=p.name;
-  document.getElementById('qfHN').value=p.hn;
-  document.getElementById('qfProc').value=p.proc;
-  document.getElementById('qfNote').value=p.note||'';
-  document.getElementById('qfAge').value=p.age!==undefined&&p.age!==''?p.age:'';
-  document.getElementById('qfAnesthesia').value=p.anesthesia||'';
-  refreshSurgeonSelect(p.surgeon||'');
-  document.getElementById('qEditDelBtn').style.display='';
-  openModal('qEditModal');
-}
-function saveQueueEdit(){
-  const{roomId,idx,isNew,patientType}=qEditContext;
-  const _age=()=>document.getElementById('qfAge').value!==''?parseInt(document.getElementById('qfAge').value):'';
-  const _str=id=>document.getElementById(id).value.trim();
-  if(patientType==='ongoing'){
-    const room=rooms.find(r=>r.id===roomId);
-    if(room&&room.current){
-      room.current.name=_str('qfName')||room.current.name;
-      room.current.hn=_str('qfHN'); room.current.proc=_str('qfProc')||'—';
-      room.current.note=_str('qfNote'); room.current.age=_age();
-      room.current.anesthesia=document.getElementById('qfAnesthesia').value;
-      const sg=document.getElementById('qfSurgeon').value; if(sg) room.doctor=sg;
-    }
-    pushRoom(roomId);
-    closeModal('qEditModal'); saveCurrentDateData(); buildTicker(); renderAll(); return;
-  }
-  if(patientType==='done'){
-    const room=rooms.find(r=>r.id===roomId);
-    const p=room&&room.completed[idx];
-    if(p){
-      p.name=_str('qfName')||p.name; p.hn=_str('qfHN');
-      p.proc=_str('qfProc')||'—'; p.note=_str('qfNote');
-      p.age=_age(); p.anesthesia=document.getElementById('qfAnesthesia').value;
-    }
-    pushRoom(roomId);
-    closeModal('qEditModal'); saveCurrentDateData(); buildTicker(); renderAll(); return;
-  }
-  const newRoom=document.getElementById('qfRoom').value;
-  const order=parseInt(document.getElementById('qfOrder').value)||1;
-  const surgeon=document.getElementById('qfSurgeon').value;
-  const p={name:document.getElementById('qfName').value.trim()||'ผู้ป่วย',
-    hn:document.getElementById('qfHN').value.trim(),
-    proc:document.getElementById('qfProc').value.trim()||'—',
-    note:document.getElementById('qfNote').value.trim(),
-    age:document.getElementById('qfAge').value!==''?parseInt(document.getElementById('qfAge').value):'',
-    anesthesia:document.getElementById('qfAnesthesia').value,
-    surgeon};
-  const src=rooms.find(r=>r.id===roomId);
-  if(!isNew) src.waiting.splice(idx,1);
-  const tgt=rooms.find(r=>r.id===newRoom);
-  if(!tgt.waiting) tgt.waiting=[];
-  tgt.waiting.splice(Math.max(0,Math.min(order-1,tgt.waiting.length)),0,p);
-  // เขียนกลับทั้งห้องที่เกี่ยวข้อง (replaceRoom จัดการ add/move/reorder ให้เอง)
-  pushRoom(roomId);
-  if(newRoom!==roomId) pushRoom(newRoom);
-  closeModal('qEditModal'); saveCurrentDateData(); buildTicker(); renderAll();
-}
-// ลบผู้ป่วยออกจากคิว (รวมตรรกะที่เคยซ้ำกันใน confirmDeleteQ + deleteQueueItem)
-function removeWaiting(roomId, idx){
-  const rm=rooms.find(x=>x.id===roomId);
-  if(!rm||!rm.waiting||!rm.waiting[idx]) return;
-  rm.waiting.splice(idx,1);
-  pushRoom(roomId);
-  buildTicker(); renderAll();
-}
-function confirmDeleteQ(roomId,idx,evt){
-  evt&&evt.stopPropagation();
-  if(!confirm('ลบผู้ป่วยออกจากคิว?')) return;
-  removeWaiting(roomId, idx);
-}
-function deleteQueueItem(){
-  if(!confirm('ลบผู้ป่วยออกจากคิว?')) return;
-  const{roomId,idx}=qEditContext;
-  closeModal('qEditModal');
-  removeWaiting(roomId, idx);
-}
-
-// ══════════════════════════════════════════════
-// EDIT FROM PATIENT LIST + UNDO COMPLETED
-// ══════════════════════════════════════════════
-function openEditPatient(type, roomId, idx, evt){
-  evt&&evt.stopPropagation();
-  requireUnlock(()=>{
-    const room=rooms.find(r=>r.id===roomId);
-    let p;
-    if(type==='ongoing') p=room.current;
-    else p=room.completed[idx];
-    if(!p) return;
-    qEditContext={roomId,idx,isNew:false,patientType:type};
-    document.getElementById('qEditTitle').textContent=type==='ongoing'?'✏️ แก้ไขผู้ป่วย (กำลังผ่าตัด)':'✏️ แก้ไขผู้ป่วย (เสร็จสิ้น)';
-    document.getElementById('qfRoom').value=roomId;
-    document.getElementById('qfOrder').value=1;
-    document.getElementById('qfName').value=p.name||'';
-    document.getElementById('qfHN').value=p.hn||'';
-    document.getElementById('qfAge').value=p.age!==undefined&&p.age!==''?p.age:'';
-    document.getElementById('qfAnesthesia').value=p.anesthesia||'';
-    document.getElementById('qfProc').value=p.proc||'';
-    document.getElementById('qfNote').value=p.note||'';
-    refreshSurgeonSelect(type==='ongoing'?room.doctor||'':'');
-    document.getElementById('qEditDelBtn').style.display='none';
-    openModal('qEditModal');
-  });
-}
-function undoCompleted(roomId, idx, evt){
-  evt&&evt.stopPropagation();
-  requireUnlock(()=>{
-    const room=rooms.find(r=>r.id===roomId);
-    if(!room||!room.completed||!room.completed[idx]) return;
-    const p=room.completed[idx];
-    const msg=room.current
-      ?`ย้าย "${p.name}" กลับเป็นกำลังผ่าตัด?
-⚠ "${room.current.name}" ที่กำลังผ่าตัดอยู่จะถูกย้ายมารอคิว`
-      :`ย้าย "${p.name}" กลับเป็นกำลังผ่าตัดใน ${roomId}?`;
-    if(!confirm(msg)) return;
-    if(room.current){
-      if(!room.waiting) room.waiting=[];
-      room.waiting.unshift({name:room.current.name,hn:room.current.hn,proc:room.current.proc,
-        note:room.current.note||'',age:room.current.age,anesthesia:room.current.anesthesia,surgeon:room.doctor});
-    }
-    room.current={name:p.name,hn:p.hn,proc:p.proc,note:p.note||'',
-      age:p.age,anesthesia:p.anesthesia,start:p.startedAt||new Date(),end:p.endedAt||null};
-    room.status='active';
-    room.completed.splice(idx,1);
-    pushRoom(roomId);
-    saveCurrentDateData(); buildTicker(); renderAll();
-  });
-}
-
-// ══════════════════════════════════════════════
-// SUMMARY BAR
-// ══════════════════════════════════════════════
-function renderSummary(){
-  const c={active:0,turnover:0,idle:0,hold:0,emergency:0};
-  rooms.forEach(r=>c[r.status]=(c[r.status]||0)+1);
-  document.getElementById('summaryBar').innerHTML=[
-    ['badge-active','● Active',c.active],
-    ['badge-turnover','◐ เตรียมห้อง',c.turnover],
-    ['badge-idle','○ ว่าง',c.idle],
-    ['badge-hold','⏸ รอ',c.hold],
-    ['badge-emergency','🚨 Emergency',c.emergency],
-  ].filter(x=>x[2]>0).map(([cl,lb,n])=>`<span class="status-badge ${cl}">${lb} · ${n}</span>`).join('');
-}
-
-// ══════════════════════════════════════════════
-// TICKER
-// ══════════════════════════════════════════════
-function buildTicker(){
-  const totalW=rooms.reduce((s,r)=>s+(r.waiting?r.waiting.length:0),0);
-  const totalD=rooms.reduce((s,r)=>s+(r.completed?r.completed.length:0),0);
-  const msgs=[
-    ...rooms.filter(r=>r.status==='active'&&r.current).map(r=>`🟢 ${r.id} [${(DEPT_META[r.dept]||DEPT_META.flexible).label}] ${r.current.proc} — ${r.doctor}`),
-    ...rooms.filter(r=>r.status==='turnover').map(r=>`🟡 ${r.id} เตรียมห้อง — ถัดไป: ${r.waiting&&r.waiting[0]?r.waiting[0].proc:'—'}`),
-    `📋 รวมรอคิว ${totalW} ราย`,
-    `✅ เสร็จสิ้นวันนี้ ${totalD} ราย`,
-    ...(Object.keys(localEdits).length?[`⚠ แก้ไข local ${Object.keys(localEdits).length} ห้อง`]:[]),
-  ];
-  document.getElementById('ticker').textContent=[...msgs,...msgs].join('   ✦   ');
-}
-
-// ══════════════════════════════════════════════
-// TABS
-// ══════════════════════════════════════════════
-function switchPage(page,btn){
-  currentPage=page;
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.getElementById({list:'listPage',queue:'queuePage'}[page]).classList.add('active');
-  if(page==='queue') renderQueueDash();
-  if(page==='list')  renderList();
-}
-
-// ══════════════════════════════════════════════
-// MODAL HELPERS
-// ══════════════════════════════════════════════
-function openModal(id){ document.getElementById(id).classList.add('open'); }
-function closeModal(id){ document.getElementById(id).classList.remove('open'); }
-document.addEventListener('click',e=>{
-  ['pwModal','promoteModal','qEditModal','settingsModal','doctorModal'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el&&e.target===el) closeModal(id);
-  });
-});
-document.addEventListener('keydown',e=>{
-  if(e.key==='Escape') ['pwModal','promoteModal','qEditModal','settingsModal','doctorModal'].forEach(closeModal);
-});
-
-// ══════════════════════════════════════════════
-// KIOSK / MONITOR MODE (จอแสดงผล OR)
-// ══════════════════════════════════════════════
-let wakeLock=null;
-async function requestWakeLock(){
+async function poll(){
+  const url=cfg.csv;
+  if(!url){ setStatus("warn","ยังไม่ตั้งค่า CSV"); render(); return; }
+  setStatus("warn","กำลัง sync…");
   try{
-    if('wakeLock' in navigator){
-      wakeLock=await navigator.wakeLock.request('screen');
-      wakeLock.addEventListener('release',()=>{ wakeLock=null; });
+    const sep=url.includes("?")?"&":"?";
+    const res=await fetch(url+sep+"_t="+Date.now());
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const text=await res.text();
+    const cases=rowsToCases(parseCSV(text));
+    // during grace window after a local push, keep local view authoritative
+    if(Date.now()<state.graceUntil){
+      setStatus("ok","sync แล้ว (รอ Sheet อัปเดต)");
+    }else{
+      state.remote=cases;
+      setStatus("ok","เชื่อมต่อแล้ว");
     }
-  }catch(e){ /* บางเบราว์เซอร์ต้องมี user gesture ก่อน */ }
-}
-// ขอ wake lock คืนเมื่อกลับมาที่แท็บ (ระบบจะ release ให้เองเวลาแท็บถูกซ่อน)
-document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='visible'){
-    if(document.body.classList.contains('kiosk')) requestWakeLock();
+    render();
+  }catch(e){
+    setStatus("err","sync ไม่ได้ — ตรวจ URL");
+    render();
   }
-});
-function toggleKiosk(){
-  const on=document.body.classList.toggle('kiosk');
-  if(on){
-    requestWakeLock();
-    const el=document.documentElement;
-    (el.requestFullscreen||el.webkitRequestFullscreen||function(){}).call(el).catch?.(()=>{});
+}
+function startPolling(){
+  if(state.pollTimer) clearInterval(state.pollTimer);
+  poll();
+  state.pollTimer=setInterval(poll, cfg.interval*1000);
+}
+
+/* push the full current snapshot back to the Sheet via Apps Script */
+async function pushSnapshot(){
+  const url=cfg.script;
+  if(!url){ toast("บันทึกในเครื่องแล้ว (ยังไม่ได้ตั้ง Write URL)","warn"); return; }
+  const cases=mergedCases().map(c=>{
+    const o={}; COLS.forEach(k=>o[k]=c[k]!==undefined?c[k]:""); return o;
+  });
+  try{
+    setStatus("warn","กำลังบันทึกขึ้น Sheet…");
+    await fetch(url,{
+      method:"POST", mode:"no-cors",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({action:"replace",cases})
+    });
+    // no-cors => opaque response; assume success, protect view briefly
+    state.graceUntil=Date.now()+Math.max(20,cfg.interval+5)*1000;
+    setStatus("ok","บันทึกขึ้น Sheet แล้ว");
+    toast("บันทึกขึ้น Google Sheet แล้ว ✓","ok");
+  }catch(e){
+    setStatus("err","บันทึกขึ้น Sheet ไม่ได้");
+    toast("บันทึกขึ้น Sheet ไม่ได้ — แต่เก็บในเครื่องแล้ว","err");
+  }
+}
+
+/* commit a local edit: store override, save, re-render, push */
+function commitEdit(){
+  saveOverrides(); render(); pushSnapshot();
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function deptOf(room){ return ROOM_DEPT[room]||"flexible"; }
+
+function render(){
+  const cases=mergedCases();
+  const byRoom={}; ROOMS.forEach(r=>byRoom[r]={current:null,waiting:[],done:[]});
+  const floating=[]; const doneAll=[];
+  let nOp=0,nWait=0,nDone=0;
+
+  cases.forEach(c=>{
+    const t=c.type;
+    if(t==="floating"||(!c.room && t!=="done")){ floating.push(c); return; }
+    if(!ROOMS.includes(c.room)){
+      if(t==="done"){doneAll.push(c);nDone++;} else floating.push(c);
+      return;
+    }
+    if(t==="current"){ byRoom[c.room].current=c; nOp++; }
+    else if(t==="done"){ byRoom[c.room].done.push(c); doneAll.push(c); nDone++; }
+    else { byRoom[c.room].waiting.push(c); nWait++; }
+  });
+  ROOMS.forEach(r=>byRoom[r].waiting.sort((a,b)=>(+a.order||99)-(+b.order||99)));
+
+  $("sOp").textContent=nOp; $("sWait").textContent=nWait; $("sDone").textContent=nDone;
+  $("sAll").textContent=nOp+nWait+nDone+floating.length;
+
+  /* room cards */
+  const grid=$("grid"); grid.innerHTML="";
+  const cards=ROOMS.map(r=>roomCard(r,byRoom[r]));
+  // pagination if rotate on
+  if(state.rotate){
+    const perPage=4;
+    state.pagesCount=Math.max(1,Math.ceil(cards.length/perPage));
+    if(state.page>=state.pagesCount) state.page=0;
+    const slice=cards.slice(state.page*perPage,state.page*perPage+perPage);
+    slice.forEach(c=>grid.appendChild(c));
+    $("pager").classList.add("show");
+    $("pageInfo").textContent=(state.page+1)+" / "+state.pagesCount;
   }else{
-    if(wakeLock){ wakeLock.release().catch(()=>{}); wakeLock=null; }
-    if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+    cards.forEach(c=>grid.appendChild(c));
+    $("pager").classList.remove("show");
+    state.pagesCount=1;
+  }
+
+  /* floating */
+  const fw=$("floatWrap"),fg=$("floatGrid");
+  if(floating.length){
+    fw.style.display=""; $("floatCount").textContent="ทั้งหมด "+floating.length;
+    fg.innerHTML="";
+    floating.forEach(c=>{
+      const d=document.createElement("div"); d.className="float-card";
+      d.innerHTML=`<div class="pn">${esc(c.patientName)||"(ไม่ระบุชื่อ)"}</div>
+        <div class="pm">HN ${esc(c.hn)||"-"} · ${esc(c.age)||"-"} ปี · ${esc(c.anesthesia)||"-"}</div>
+        <div class="pm">${esc(c.procedure)||""}</div>
+        <div class="sg">👨‍⚕️ ${esc(c.surgeon)||"-"}</div>`;
+      d.onclick=()=>openCase(c);
+      fg.appendChild(d);
+    });
+  }else fw.style.display="none";
+
+  /* done log */
+  const dw=$("doneWrap"),dg=$("doneGrid");
+  if(doneAll.length){
+    dw.style.display=""; $("doneCount").textContent="ทั้งหมด "+doneAll.length;
+    dg.innerHTML="";
+    doneAll.forEach(c=>{
+      const d=document.createElement("div"); d.className="done-card";
+      d.innerHTML=`<div class="info"><div class="pn">${esc(c.patientName)||"(ไม่ระบุ)"} · ${esc(c.room)||""}</div>
+        <div class="pm">${esc(c.procedure)||""} · ${esc(c.surgeon)||"-"}</div></div>`;
+      const u=document.createElement("button"); u.className="undo"; u.textContent="↩ Undo";
+      u.onclick=(ev)=>{ev.stopPropagation();undoDone(c);};
+      d.appendChild(u);
+      dg.appendChild(d);
+    });
+  }else dw.style.display="none";
+}
+
+function roomCard(room,data){
+  const dept=deptOf(room); const meta=DEPT_META[dept];
+  const card=document.createElement("div"); card.className="room";
+  if(!data.current && !data.waiting.length) card.classList.add("done-room");
+
+  const surgeon = data.current?.surgeon || (data.waiting[0]?.surgeon) || "";
+  // top
+  const top=document.createElement("div"); top.className="top";
+  top.innerHTML=`<span class="rid">${room}</span>
+    <span class="badge" style="background:${meta.color}">${meta.label}</span>
+    <span class="surg" title="แก้ไขเคสกำลังผ่า">${surgeon?("👨‍⚕️ "+esc(surgeon)):"แตะเพื่อเพิ่มเคส"}</span>`;
+  card.appendChild(top);
+
+  const body=document.createElement("div"); body.className="body";
+
+  // current
+  const now=document.createElement("div");
+  if(data.current){
+    const c=data.current;
+    now.className="now active";
+    now.innerHTML=`<div class="tag"><span class="pulse"></span>กำลังผ่าตัด</div>
+      ${c.startTime?`<div class="time">${esc(c.startTime)}${c.endTime?"–"+esc(c.endTime):""}</div>`:""}
+      <div class="pname">${esc(c.patientName)||"(ไม่ระบุชื่อ)"}</div>
+      <div class="meta">HN ${esc(c.hn)||"-"} · ${esc(c.age)||"-"} ปี · ${esc(c.anesthesia)||"-"}</div>
+      <div class="proc">${esc(c.procedure)||""}</div>`;
+    now.onclick=()=>openCase(c);
+  }else{
+    now.className="now empty";
+    now.innerHTML=`<div class="tag">ว่าง — ไม่มีเคสกำลังผ่าตัด</div>`;
+    now.onclick=()=>openCase({room,type:"current",order:""});
+  }
+  body.appendChild(now);
+
+  // waiting
+  const qhead=document.createElement("div"); qhead.className="qhead";
+  qhead.innerHTML=`🔢 คิวรอ (${data.waiting.length})`;
+  body.appendChild(qhead);
+  const qlist=document.createElement("div"); qlist.className="qlist";
+  if(data.waiting.length){
+    data.waiting.forEach((c,i)=>{
+      const it=document.createElement("div"); it.className="qitem";
+      it.innerHTML=`<div class="qnum">${esc(c.order)||(i+1)}</div>
+        <div><div class="pn">${esc(c.patientName)||"(ไม่ระบุ)"}</div>
+        <div class="pm">${esc(c.procedure)||""} · ${esc(c.surgeon)||"-"}</div></div>
+        <div class="right">${esc(c.anesthesia)||""}<br>${esc(c.startTime)||""}</div>`;
+      it.onclick=()=>openCase(c);
+      qlist.appendChild(it);
+    });
+  }else{
+    const m=document.createElement("div"); m.className="empty-msg"; m.textContent="ไม่มีคิวรอ";
+    qlist.appendChild(m);
+  }
+  body.appendChild(qlist);
+
+  // add buttons
+  const ar=document.createElement("div"); ar.className="add-row";
+  const b1=document.createElement("button"); b1.className="mini"; b1.textContent="＋ เพิ่มคิว";
+  b1.onclick=()=>openCase({room,type:"waiting",order:String((data.waiting.length||0)+1)});
+  ar.appendChild(b1);
+  body.appendChild(ar);
+
+  card.appendChild(body);
+  return card;
+}
+
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+
+/* ============================================================
+   EDIT FLOW (password-gated)
+   ============================================================ */
+function requireUnlock(then){
+  if(state.unlocked){ then(); return; }
+  state._afterUnlock=then;
+  $("pwInput").value=""; openModal("pwOverlay"); setTimeout(()=>$("pwInput").focus(),50);
+}
+function doUnlock(){
+  if($("pwInput").value===PASSWORD){
+    state.unlocked=true; $("lockBtn").textContent="🔓"; $("lockBtn").classList.add("active");
+    closeModal("pwOverlay"); toast("ปลดล็อกแล้ว — แก้ไขได้","ok");
+    const f=state._afterUnlock; state._afterUnlock=null; if(f) f();
+  }else toast("รหัสผ่านไม่ถูกต้อง","err");
+}
+
+let _editing=null;
+function openCase(c){
+  requireUnlock(()=>{
+    _editing=Object.assign({},c);
+    state.editingId = c.patientName||c.hn ? caseId(c) : null; // null => new
+    // fill surgeon + room selects
+    fillSelect($("cRoom"), ["",...ROOMS], _editing.room||"", v=>v||"(ไม่ระบุห้อง)");
+    fillSelect($("cSurg"), ["",...getSurgeons()], _editing.surgeon||"", v=>v||"(ไม่ระบุ)");
+    $("cOrder").value=_editing.order||"";
+    $("cName").value=_editing.patientName||"";
+    $("cHN").value=_editing.hn||"";
+    $("cAge").value=_editing.age||"";
+    $("cAnes").value=_editing.anesthesia||"";
+    $("cProc").value=_editing.procedure||"";
+    $("cStart").value=_editing.startTime||"";
+    $("cEnd").value=_editing.endTime||"";
+    $("cNote").value=_editing.note||"";
+    setType(_editing.type||"current");
+    $("caseTitle").textContent=state.editingId?"✏️ แก้ไขเคส":"⬆️ เพิ่มเคสใหม่";
+    $("cDelete").style.display=state.editingId?"":"none";
+    openModal("caseOverlay");
+  });
+}
+function setType(t){
+  state.editingType=t;
+  document.querySelectorAll("#typeSeg button").forEach(b=>{
+    b.classList.toggle("active",b.dataset.type===t);
+  });
+}
+function fillSelect(sel,vals,selected,labelFn){
+  sel.innerHTML="";
+  vals.forEach(v=>{
+    const o=document.createElement("option"); o.value=v;
+    o.textContent=labelFn?labelFn(v):(v||"(ไม่ระบุ)");
+    if(v===selected) o.selected=true;
+    sel.appendChild(o);
+  });
+}
+function saveCase(){
+  const room=$("cRoom").value;
+  const t=state.editingType;
+  const c={
+    room: (t==="floating")?"":room,
+    dept: deptOf(room),
+    surgeon:$("cSurg").value,
+    roomStatus:"",
+    type:t,
+    order:$("cOrder").value,
+    patientName:$("cName").value.trim(),
+    hn:$("cHN").value.trim(),
+    age:$("cAge").value,
+    anesthesia:$("cAnes").value,
+    procedure:$("cProc").value.trim(),
+    startTime:$("cStart").value,
+    endTime:$("cEnd").value,
+    note:$("cNote").value.trim()
+  };
+  if(!c.patientName && !c.procedure){ toast("กรุณาใส่ชื่อผู้ป่วยหรือหัตถการ","err"); return; }
+  // assign stable id
+  c.id = state.editingId || ("local-"+Date.now()+"-"+Math.random().toString(36).slice(2,7));
+  // remove old override under previous id if id changed
+  if(state.editingId && state.editingId!==c.id) delete state.overrides[state.editingId];
+  state.overrides[c.id]=c;
+  closeModal("caseOverlay");
+  commitEdit();
+  toast("บันทึกเคสแล้ว","ok");
+}
+function deleteCase(){
+  if(!state.editingId) return;
+  state.overrides[state.editingId]={__deleted:true,id:state.editingId};
+  closeModal("caseOverlay");
+  commitEdit();
+  toast("ลบเคสแล้ว","ok");
+}
+function undoDone(c){
+  requireUnlock(()=>{
+    const id=caseId(c);
+    const nc=Object.assign({},c,{type:"waiting",id});
+    state.overrides[id]=nc;
+    commitEdit();
+    toast("นำเคสกลับเข้าคิวแล้ว","ok");
+  });
+}
+
+/* ============================================================
+   SURGEON MANAGER
+   ============================================================ */
+function renderSurgeons(){
+  const list=$("surgList"); list.innerHTML="";
+  const surg=getSurgeons();
+  if(!surg.length){ list.innerHTML='<div class="empty-msg">ยังไม่มีรายชื่อแพทย์</div>'; return; }
+  surg.forEach((s,i)=>{
+    const row=document.createElement("div"); row.className="surg-row";
+    row.innerHTML=`<span>👨‍⚕️ ${esc(s)}</span>`;
+    const b=document.createElement("button"); b.textContent="🗑"; b.title="ลบ";
+    b.onclick=()=>{const a=getSurgeons();a.splice(i,1);setSurgeons(a);renderSurgeons();};
+    row.appendChild(b); list.appendChild(row);
+  });
+}
+
+/* ============================================================
+   ROTATE / FULLSCREEN / CLOCK
+   ============================================================ */
+function setRotate(on){
+  state.rotate=on; localStorage.setItem(LS.rotate,on?"1":"0");
+  $("rotateBtn").classList.toggle("active",on);
+  if(state.rotateTimer) clearInterval(state.rotateTimer);
+  if(on){
+    state.rotateTimer=setInterval(()=>{
+      state.page=(state.page+1)%Math.max(1,state.pagesCount);
+      render();
+    },12000);
+  }else state.page=0;
+  render();
+}
+function toggleFullscreen(){
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+  else document.exitFullscreen?.();
+}
+function tickClock(){
+  const d=new Date();
+  $("clock").textContent=d.toLocaleTimeString("th-TH",{hour12:false});
+}
+
+/* ============================================================
+   MODALS
+   ============================================================ */
+function openModal(id){$(id).classList.add("show");}
+function closeModal(id){$(id).classList.remove("show");}
+
+/* ============================================================
+   INIT / EVENTS
+   ============================================================ */
+function init(){
+  loadOverrides();
+  state.rotate=localStorage.getItem(LS.rotate)==="1";
+  $("rotateBtn").classList.toggle("active",state.rotate);
+
+  // header buttons
+  $("lockBtn").onclick=()=>{
+    if(state.unlocked){state.unlocked=false;$("lockBtn").textContent="🔒";$("lockBtn").classList.remove("active");toast("ล็อกแล้ว","ok");}
+    else requireUnlock(()=>{});
+  };
+  $("rotateBtn").onclick=()=>setRotate(!state.rotate);
+  $("fsBtn").onclick=toggleFullscreen;
+  $("setBtn").onclick=()=>requireUnlock(()=>{
+    $("setCsv").value=cfg.csv; $("setScript").value=cfg.script; $("setInterval").value=String(cfg.interval);
+    openModal("setOverlay");
+  });
+
+  // password
+  $("pwSubmit").onclick=doUnlock;
+  $("pwInput").addEventListener("keydown",e=>{if(e.key==="Enter")doUnlock();});
+
+  // case modal
+  document.querySelectorAll("#typeSeg button").forEach(b=>b.onclick=()=>setType(b.dataset.type));
+  $("cSave").onclick=saveCase;
+  $("cDelete").onclick=deleteCase;
+
+  // settings
+  $("setSave").onclick=()=>{
+    cfg.csv=$("setCsv").value.trim(); cfg.script=$("setScript").value.trim();
+    cfg.interval=parseInt($("setInterval").value,10);
+    closeModal("setOverlay"); toast("บันทึกการตั้งค่าแล้ว","ok"); startPolling();
+  };
+  $("setTest").onclick=async()=>{
+    const u=$("setCsv").value.trim(); if(!u){toast("ใส่ CSV URL ก่อน","err");return;}
+    try{const r=await fetch(u+(u.includes("?")?"&":"?")+"_t="+Date.now());
+      const txt=await r.text(); const n=rowsToCases(parseCSV(txt)).length;
+      toast("อ่านได้ "+n+" เคส ✓","ok");}
+    catch(e){toast("อ่านไม่ได้ — ตรวจ URL/การ Publish","err");}
+  };
+  $("newDayBtn").onclick=()=>{
+    if(confirm("ล้าง local edits ทั้งหมด และดึงข้อมูลจาก Google Sheet ใหม่?")){
+      state.overrides={}; saveOverrides(); state.graceUntil=0;
+      closeModal("setOverlay"); poll(); toast("เริ่มต้นวันใหม่แล้ว 🌅","ok");
+    }
+  };
+  $("surgMgrBtn").onclick=()=>{renderSurgeons();openModal("surgOverlay");};
+
+  // surgeon manager
+  $("addSurg").onclick=()=>{
+    const v=$("newSurg").value.trim(); if(!v)return;
+    const a=getSurgeons(); if(!a.includes(v))a.push(v); setSurgeons(a);
+    $("newSurg").value=""; renderSurgeons();
+  };
+  $("newSurg").addEventListener("keydown",e=>{if(e.key==="Enter")$("addSurg").click();});
+
+  // pager
+  $("prevPage").onclick=()=>{state.page=(state.page-1+state.pagesCount)%state.pagesCount;render();};
+  $("nextPage").onclick=()=>{state.page=(state.page+1)%state.pagesCount;render();};
+
+  // close overlays on backdrop click
+  document.querySelectorAll(".overlay").forEach(o=>{
+    o.addEventListener("click",e=>{if(e.target===o)o.classList.remove("show");});
+  });
+
+  tickClock(); setInterval(tickClock,1000);
+  if(state.rotate) setRotate(true);
+  render();
+  startPolling();
+
+  if(!cfg.csv){
+    setTimeout(()=>{ requireUnlock(()=>{
+      $("setCsv").value=""; $("setScript").value=""; $("setInterval").value="15"; openModal("setOverlay");
+    }); },400);
   }
 }
-// ออกจาก fullscreen (กด Esc/F) → ออกจากโหมดจอด้วย
-document.addEventListener('fullscreenchange',()=>{
-  if(!document.fullscreenElement && document.body.classList.contains('kiosk')){
-    document.body.classList.remove('kiosk');
-    if(wakeLock){ wakeLock.release().catch(()=>{}); wakeLock=null; }
-  }
-});
-
-// ══════════════════════════════════════════════
-// RENDER ALL & INIT
-// ══════════════════════════════════════════════
-function renderAll(){
-  renderSummary();
-  if(currentPage==='queue') renderQueueDash();
-  if(currentPage==='list')  renderList();
-}
-
-function initListRoomFilter(){
-  const sel=document.getElementById('roomFilter');
-  rooms.forEach(r=>{ const o=document.createElement('option'); o.value=r.id; o.textContent=r.id; sel.appendChild(o); });
-}
-
-// ══════════════════════════════════════════════
-// MAIN LOOP
-// ══════════════════════════════════════════════
-function tick(){
-  renderSummary();
-  if(currentPage==='queue'){ updateQueueTimers(); }
-  if(currentPage==='list'){ updateListTimers(); }
-  if(syncState==='live'&&lastSyncTime) setSyncState('live');
-}
-
-// ══════════════════════════════════════════════
-// DATE NAVIGATION
-// ══════════════════════════════════════════════
-function todayStr(){
-  const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-function dateStrToDisplay(s){
-  if(!s) return '';
-  const[y,m,d]=s.split('-');
-  const dt=new Date(+y,+m-1,+d);
-  return `${DAYS[dt.getDay()]}ที่ ${+d} ${MONTHS[+m-1]} ${+y+543}`;
-}
-
-// Serialize rooms → plain JSON-safe object
-function serializeRooms(rs){
-  return rs.map(r=>({
-    ...r,
-    current: r.current ? {...r.current, start:r.current.start?.toISOString()||null, end:r.current.end?.toISOString()||null} : null,
-    waiting: (r.waiting||[]).map(p=>({...p})),
-    completed: (r.completed||[]).map(p=>({...p,
-      startedAt:p.startedAt?.toISOString()||null,
-      endedAt:p.endedAt?.toISOString()||null})),
-  }));
-}
-// Deserialize plain JSON → rooms with Date objects
-function deserializeRooms(data){
-  return data.map(r=>({
-    ...r,
-    current: r.current ? {...r.current,
-      start:r.current.start?new Date(r.current.start):null,
-      end:r.current.end?new Date(r.current.end):null} : null,
-    waiting: (r.waiting||[]).map(p=>({...p})),
-    completed: (r.completed||[]).map(p=>({...p,
-      startedAt:p.startedAt?new Date(p.startedAt):null,
-      endedAt:p.endedAt?new Date(p.endedAt):null})),
-  }));
-}
-// Blank template for a new date
-function blankRooms(){
-  return [
-    {id:'OR1',dept:'obs-gyne',doctor:'',status:'idle',current:null,waiting:[],completed:[]},
-    {id:'OR2',dept:'surg',    doctor:'',status:'idle',current:null,waiting:[],completed:[]},
-    {id:'OR3',dept:'surg',    doctor:'',status:'idle',current:null,waiting:[],completed:[]},
-    {id:'OR4',dept:'eye',     doctor:'',status:'idle',current:null,waiting:[],completed:[]},
-    {id:'OR5',dept:'flexible',doctor:'',status:'idle',current:null,waiting:[],completed:[]},
-    {id:'OR6',dept:'ortho',   doctor:'',status:'idle',current:null,waiting:[],completed:[]},
-    {id:'OR7',dept:'ent',     doctor:'',status:'idle',current:null,waiting:[],completed:[]},
-  ];
-}
-function saveCurrentDateData(){
-  if(!selectedDate) return;
-  dateDataStore[selectedDate]=serializeRooms(rooms);
-  try{ localStorage.setItem('orDateData',JSON.stringify(dateDataStore)); }catch(e){}
-}
-function loadDateDataStore(){
-  try{
-    const s=localStorage.getItem('orDateData');
-    if(s) dateDataStore=JSON.parse(s);
-  }catch(e){ dateDataStore={}; }
-}
-function switchDate(newDate){
-  if(newDate===selectedDate) return;
-  saveCurrentDateData();
-  localEdits={};
-  selectedDate=newDate;
-  // Load data for the new date
-  if(dateDataStore[newDate]){
-    rooms=deserializeRooms(dateDataStore[newDate]);
-  } else {
-    rooms=blankRooms();
-  }
-  updateDateNav();
-  initRoomToggles();
-  updateSurgeonFilter();
-  buildTicker(); renderAll();
-}
-function updateDateNav(){
-  const inp=document.getElementById('datePickerInput');
-  const disp=document.getElementById('dateNavDisplay');
-  const todayBt=document.getElementById('todayBtn');
-  if(inp) inp.value=selectedDate;
-  const isToday=selectedDate===todayStr();
-  if(disp){
-    disp.innerHTML=dateStrToDisplay(selectedDate)+
-      (isToday?'<span class="date-today-label">● วันนี้</span>':'<span class="date-other-label">📅 ดูย้อนหลัง</span>');
-  }
-  if(todayBt) todayBt.style.display=isToday?'none':'';
-}
-function onDatePickerChange(val){ if(val) switchDate(val); }
-function shiftDate(n){
-  const d=new Date(selectedDate+'T00:00:00');
-  d.setDate(d.getDate()+n);
-  const s=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  switchDate(s);
-}
-function goToday(){ switchDate(todayStr()); }
-
-// ══════════════════════════════════════════════
-// DOCTOR LIST
-// ══════════════════════════════════════════════
-function initDoctors(){
-  const saved=localStorage.getItem('doctors');
-  if(saved){ try{ doctors=JSON.parse(saved); }catch(e){ doctors=[]; } }
-  // seed from room data any that aren't already in list
-  rooms.forEach(r=>{ if(r.doctor&&!doctors.includes(r.doctor)) doctors.push(r.doctor); });
-  doctors.sort();
-  saveDoctors();
-}
-function saveDoctors(){
-  localStorage.setItem('doctors',JSON.stringify(doctors));
-}
-function openDoctorManager(){
-  renderDoctorModal();
-  document.getElementById('docNewName').value='';
-  openModal('doctorModal');
-  setTimeout(()=>document.getElementById('docNewName').focus(),60);
-}
-function closeDoctorManager(){
-  closeModal('doctorModal');
-  // refresh surgeon select in edit modal with currently selected value
-  const sel=document.getElementById('qfSurgeon');
-  if(sel) refreshSurgeonSelect(sel.value);
-}
-function renderDoctorModal(){
-  const list=document.getElementById('docList');
-  if(!doctors.length){
-    list.innerHTML='<div style="color:var(--muted);font-size:.76rem;padding:8px 2px">ยังไม่มีรายชื่อแพทย์</div>';
-    return;
-  }
-  list.innerHTML=doctors.map(d=>`
-    <div class="doc-item">
-      <span class="doc-item-name">${d}</span>
-      <button class="doc-item-del" title="ลบ" onclick="deleteDoctorFromList('${d.replace(/'/g,"\\'")}')">✕</button>
-    </div>`).join('');
-}
-function addDoctorToList(){
-  const inp=document.getElementById('docNewName');
-  const name=inp.value.trim();
-  if(!name) return;
-  if(doctors.includes(name)){ inp.select(); return; }
-  doctors.push(name); doctors.sort();
-  saveDoctors(); updateSurgeonFilter();
-  renderDoctorModal();
-  inp.value=''; inp.focus();
-}
-function deleteDoctorFromList(name){
-  if(!confirm(`ลบ "${name}" ออกจากรายชื่อแพทย์?`)) return;
-  doctors=doctors.filter(d=>d!==name);
-  saveDoctors(); updateSurgeonFilter();
-  renderDoctorModal();
-}
-
-// Init date — store today's demo data then set as selected
-loadDateDataStore();
-selectedDate = todayStr();
-if(!dateDataStore[selectedDate]){
-  // first visit today: save the demo data
-  dateDataStore[selectedDate] = serializeRooms(rooms);
-  try{ localStorage.setItem('orDateData',JSON.stringify(dateDataStore)); }catch(e){}
-} else {
-  // reload saved data for today (user may have edited and refreshed)
-  rooms = deserializeRooms(dateDataStore[selectedDate]);
-}
-updateDateNav();
-
-initRoomToggles();
-initListRoomFilter();
-initDoctors();
-updateSurgeonFilter();
-buildTicker();
-renderList(); // initial render for first tab
-setInterval(tick,1000);
-setInterval(saveCurrentDateData, 10000); // auto-save every 10s
-if(sheetUrl) startPolling();
+window.addEventListener("DOMContentLoaded",init);
 </script>
 </body>
 </html>
