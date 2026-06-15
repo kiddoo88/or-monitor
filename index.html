@@ -58,9 +58,20 @@
     border-bottom:1px solid var(--line);background:var(--panel2)}
   .room .top .rid{font-size:18px;font-weight:800}
   .badge{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:999px;color:#08111f;letter-spacing:.4px}
-  .room .top .surg{margin-left:auto;color:var(--muted);font-size:13px;font-weight:700;
-    cursor:pointer;text-align:right;max-width:48%}
-  .room .top .surg:hover{color:var(--txt)}
+  .room .top .surg{margin-left:auto;color:#eaf1ff;font-size:14.5px;font-weight:800;
+    cursor:pointer;text-align:right;max-width:52%;letter-spacing:.2px}
+  .room .top .surg:hover{color:#fff}
+  /* surgeon line shown inside cards */
+  .surgline{display:inline-flex;align-items:center;gap:5px;font-size:13.5px;font-weight:800;
+    color:#fff;background:rgba(59,130,246,.16);border:1px solid rgba(59,130,246,.35);
+    padding:2px 9px;border-radius:999px;margin-top:6px}
+  /* yellow note pill */
+  .noteY{display:flex;align-items:flex-start;gap:6px;color:var(--yellow);font-size:12.5px;
+    font-weight:700;margin-top:6px;line-height:1.45;background:rgba(234,179,8,.1);
+    border:1px solid rgba(234,179,8,.3);border-radius:8px;padding:5px 9px}
+  /* per-case department chip */
+  .deptchip{font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;color:#08111f;
+    letter-spacing:.3px;display:inline-block}
   .room .body{padding:13px 14px;flex:1;display:flex;flex-direction:column;gap:11px}
   .now{border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:#10203a;position:relative}
   .now.active{border-color:rgba(34,197,94,.6);background:linear-gradient(180deg,#10271c,#10203a)}
@@ -197,8 +208,10 @@
     <button id="nextPage">›</button>
   </div>
 
-  <div class="floating-wrap" id="floatWrap" style="display:none">
-    <h2>📌 เคสที่ set ลอยไว้ (ยังไม่ assign เข้าห้อง) <span class="locked-hint" id="floatCount"></span></h2>
+  <div class="floating-wrap" id="floatWrap">
+    <h2>📌 เคสที่ set ลอยไว้ (ยังไม่ assign เข้าห้อง) <span class="locked-hint" id="floatCount"></span>
+      <button class="btn primary" id="addFloatBtn" style="margin-left:auto;max-width:170px;padding:7px 12px;font-size:13px">＋ เพิ่มเคสลอย</button>
+    </h2>
     <div class="float-grid" id="floatGrid"></div>
   </div>
 
@@ -231,9 +244,11 @@
         <button data-type="floating">📌 ลอยไว้</button>
         <button data-type="done">✓ เสร็จ</button>
       </div>
-      <div class="grid2">
+      <div class="grid3">
         <div class="field"><label>ห้องผ่าตัด</label>
           <select id="cRoom"></select></div>
+        <div class="field"><label>แผนก (สีเคส)</label>
+          <select id="cDept"></select></div>
         <div class="field"><label>ลำดับคิว</label><input type="number" id="cOrder" min="1" value="1" /></div>
       </div>
       <div class="grid2">
@@ -334,6 +349,11 @@ const DEPT_META = {
 };
 const DEFAULT_SURGEONS = [];
 
+/* default backend URLs — baked in so any device that opens the GitHub URL
+   shows the same data without per-device setup */
+const DEFAULT_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS37qXXgmgnxiwysUOtRxMJHCVxXbU9zSwH95n3FGnBEes8vxPdhomNctvS7pxSe7jcQxtW-_JxMbU7/pub?gid=0&single=true&output=csv";
+const DEFAULT_SCRIPT = "https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnSYE_Z50UFZ5epPiACy4gG9oMN4pXDAgi7p7AtpYnUFkh4KLpCS3mxQHim82qP9qIdNDHURPYBVp3tAewgv7OMmCZoO-Bp42Q10_8ns54uF0sJwMXX98Nv1nSbfTQ6ocN9HPkCWkUGqh0P7rh5-zLSTUzUjLWxcxmkGN9VaaBbARpUt7O81sFLr4i0GOKWvsmrvMjBUu1r1AG0SfSAQKdYY7u6i0rFGvxaPeBqakI4MBqHOe8s88ICBIQYFQcDmoZN9yFmwGoww4M23JkQ&lib=M8KyZrAF4Izo2LO_9srzzltsIdBoprQ1o";
+
 const LS = {
   csv:"orm_csv", script:"orm_script", interval:"orm_interval",
   surgeons:"orm_surgeons", overrides:"orm_overrides", rotate:"orm_rotate"
@@ -357,9 +377,9 @@ let state = {
 /* ---------- helpers ---------- */
 const $ = id => document.getElementById(id);
 const cfg = {
-  get csv(){return localStorage.getItem(LS.csv)||""},
+  get csv(){const v=localStorage.getItem(LS.csv);return v!==null?v:DEFAULT_CSV;},
   set csv(v){localStorage.setItem(LS.csv,v)},
-  get script(){return localStorage.getItem(LS.script)||""},
+  get script(){const v=localStorage.getItem(LS.script);return v!==null?v:DEFAULT_SCRIPT;},
   set script(v){localStorage.setItem(LS.script,v)},
   get interval(){return parseInt(localStorage.getItem(LS.interval)||"15",10)},
   set interval(v){localStorage.setItem(LS.interval,String(v))},
@@ -505,6 +525,12 @@ function commitEdit(){
    RENDER
    ============================================================ */
 function deptOf(room){ return ROOM_DEPT[room]||"flexible"; }
+function deptMeta(d){ return DEPT_META[d]||DEPT_META.flexible; }
+/* department for a specific case: explicit dept wins, else room's dept */
+function caseDept(c){ return (c.dept && DEPT_META[c.dept]) ? c.dept : deptOf(c.room); }
+function noteHTML(c){ return c.note ? `<div class="noteY">📝 ${esc(c.note)}</div>` : ""; }
+function surgHTML(c){ return c.surgeon ? `<span class="surgline">👨‍⚕️ ${esc(c.surgeon)}</span>` : ""; }
+function deptChip(d){ const m=deptMeta(d); return `<span class="deptchip" style="background:${m.color}">${m.label}</span>`; }
 
 function render(){
   const cases=mergedCases();
@@ -548,19 +574,25 @@ function render(){
 
   /* floating */
   const fw=$("floatWrap"),fg=$("floatGrid");
+  $("floatCount").textContent="ทั้งหมด "+floating.length;
+  fg.innerHTML="";
   if(floating.length){
-    fw.style.display=""; $("floatCount").textContent="ทั้งหมด "+floating.length;
-    fg.innerHTML="";
     floating.forEach(c=>{
+      const col=deptMeta(caseDept(c)).color;
       const d=document.createElement("div"); d.className="float-card";
-      d.innerHTML=`<div class="pn">${esc(c.patientName)||"(ไม่ระบุชื่อ)"}</div>
+      d.style.borderLeftColor=col;
+      d.innerHTML=`${deptChip(caseDept(c))}
+        <div class="pn" style="margin-top:5px">${esc(c.patientName)||"(ไม่ระบุชื่อ)"}</div>
         <div class="pm">HN ${esc(c.hn)||"-"} · ${esc(c.age)||"-"} ปี · ${esc(c.anesthesia)||"-"}</div>
         <div class="pm">${esc(c.procedure)||""}</div>
-        <div class="sg">👨‍⚕️ ${esc(c.surgeon)||"-"}</div>`;
+        ${surgHTML(c)}
+        ${noteHTML(c)}`;
       d.onclick=()=>openCase(c);
       fg.appendChild(d);
     });
-  }else fw.style.display="none";
+  }else{
+    fg.innerHTML='<div class="empty-msg">ยังไม่มีเคสลอย — กด ＋ เพิ่มเคสลอย เพื่อเพิ่ม</div>';
+  }
 
   /* done log */
   const dw=$("doneWrap"),dg=$("doneGrid");
@@ -599,11 +631,14 @@ function roomCard(room,data){
   if(data.current){
     const c=data.current;
     now.className="now active";
-    now.innerHTML=`<div class="tag"><span class="pulse"></span>กำลังผ่าตัด</div>
+    now.style.borderLeft="5px solid "+deptMeta(caseDept(c)).color;
+    now.innerHTML=`<div class="tag"><span class="pulse"></span>กำลังผ่าตัด ${deptChip(caseDept(c))}</div>
       ${c.startTime?`<div class="time">${esc(c.startTime)}${c.endTime?"–"+esc(c.endTime):""}</div>`:""}
       <div class="pname">${esc(c.patientName)||"(ไม่ระบุชื่อ)"}</div>
       <div class="meta">HN ${esc(c.hn)||"-"} · ${esc(c.age)||"-"} ปี · ${esc(c.anesthesia)||"-"}</div>
-      <div class="proc">${esc(c.procedure)||""}</div>`;
+      <div class="proc">${esc(c.procedure)||""}</div>
+      ${surgHTML(c)}
+      ${noteHTML(c)}`;
     now.onclick=()=>openCase(c);
   }else{
     now.className="now empty";
@@ -620,9 +655,12 @@ function roomCard(room,data){
   if(data.waiting.length){
     data.waiting.forEach((c,i)=>{
       const it=document.createElement("div"); it.className="qitem";
+      it.style.borderLeft="4px solid "+deptMeta(caseDept(c)).color;
       it.innerHTML=`<div class="qnum">${esc(c.order)||(i+1)}</div>
-        <div><div class="pn">${esc(c.patientName)||"(ไม่ระบุ)"}</div>
-        <div class="pm">${esc(c.procedure)||""} · ${esc(c.surgeon)||"-"}</div></div>
+        <div style="min-width:0;flex:1"><div class="pn">${esc(c.patientName)||"(ไม่ระบุ)"}</div>
+        <div class="pm">${esc(c.procedure)||""}</div>
+        ${surgHTML(c)}
+        ${noteHTML(c)}</div>
         <div class="right">${esc(c.anesthesia)||""}<br>${esc(c.startTime)||""}</div>`;
       it.onclick=()=>openCase(c);
       qlist.appendChild(it);
@@ -667,9 +705,10 @@ function openCase(c){
   requireUnlock(()=>{
     _editing=Object.assign({},c);
     state.editingId = c.patientName||c.hn ? caseId(c) : null; // null => new
-    // fill surgeon + room selects
+    // fill surgeon + room + dept selects
     fillSelect($("cRoom"), ["",...ROOMS], _editing.room||"", v=>v||"(ไม่ระบุห้อง)");
     fillSelect($("cSurg"), ["",...getSurgeons()], _editing.surgeon||"", v=>v||"(ไม่ระบุ)");
+    fillSelect($("cDept"), Object.keys(DEPT_META), caseDept(_editing), v=>deptMeta(v).label);
     $("cOrder").value=_editing.order||"";
     $("cName").value=_editing.patientName||"";
     $("cHN").value=_editing.hn||"";
@@ -705,7 +744,7 @@ function saveCase(){
   const t=state.editingType;
   const c={
     room: (t==="floating")?"":room,
-    dept: deptOf(room),
+    dept: $("cDept").value || deptOf(room),
     surgeon:$("cSurg").value,
     roomStatus:"",
     type:t,
@@ -820,6 +859,13 @@ function init(){
   document.querySelectorAll("#typeSeg button").forEach(b=>b.onclick=()=>setType(b.dataset.type));
   $("cSave").onclick=saveCase;
   $("cDelete").onclick=deleteCase;
+  // when picking a real room, auto-match the dept color to that room
+  $("cRoom").addEventListener("change",()=>{
+    const r=$("cRoom").value;
+    if(r && ROOM_DEPT[r]) $("cDept").value=ROOM_DEPT[r];
+  });
+  // add a brand-new floating case
+  $("addFloatBtn").onclick=()=>openCase({room:"",type:"floating",order:"",dept:""});
 
   // settings
   $("setSave").onclick=()=>{
@@ -863,12 +909,6 @@ function init(){
   if(state.rotate) setRotate(true);
   render();
   startPolling();
-
-  if(!cfg.csv){
-    setTimeout(()=>{ requireUnlock(()=>{
-      $("setCsv").value=""; $("setScript").value=""; $("setInterval").value="15"; openModal("setOverlay");
-    }); },400);
-  }
 }
 window.addEventListener("DOMContentLoaded",init);
 </script>
