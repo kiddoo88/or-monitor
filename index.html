@@ -627,7 +627,7 @@ function roomCard(room,data){
   const top=document.createElement("div"); top.className="top";
   top.innerHTML=`<span class="rid">${room}</span>
     <span class="badge" style="background:${meta.color}">${meta.label}</span>
-    <span class="surg" title="แก้ไขเคสกำลังผ่า">${surgeon?("👨‍⚕️ "+esc(surgeon)):"แตะเพื่อเพิ่มเคส"}</span>`;
+    <span class="surg" title="แก้ไขเคสกำลังผ่า">${surgeon?("👨‍⚕️ "+esc(surgeon)):""}</span>`;
   card.appendChild(top);
 
   const body=document.createElement("div"); body.className="body";
