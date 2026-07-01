@@ -84,6 +84,46 @@
   .now .proc{color:#cdd9f3;font-size:13.5px;margin-top:4px;font-weight:600}
   .now .time{position:absolute;top:11px;right:12px;font-size:12px;color:var(--muted);font-weight:700;
     font-variant-numeric:tabular-nums}
+  /* make the CURRENT (operating) card boldly green + prominent */
+  .now.active{border:2px solid #22c55e;background:linear-gradient(180deg,#0f3222,#10241a);
+    box-shadow:0 0 0 1px rgba(34,197,94,.35),0 8px 26px rgba(34,197,94,.22)}
+  .now.active .tag{color:#4ade80;font-size:12.5px}
+  .now.active .pname{color:#eafff2}
+  /* progress bar */
+  .prog{margin-top:9px}
+  .prog-top{display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;
+    color:#a7f3c4;margin-bottom:4px}
+  .prog-track{height:9px;border-radius:999px;background:#0a1a12;border:1px solid #1e4634;overflow:hidden}
+  .prog-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#22c55e,#4ade80);
+    transition:width .6s ease}
+  .now.over{border-color:#ef4444;background:linear-gradient(180deg,#3a1414,#241012);
+    box-shadow:0 0 0 1px rgba(239,68,68,.4),0 8px 26px rgba(239,68,68,.25)}
+  .now.over .tag{color:#fca5a5}
+  .now.over .prog-top{color:#fca5a5}
+  .now.over .prog-fill{background:linear-gradient(90deg,#ef4444,#f87171)}
+  .now.over .prog-track{background:#1c0c0c;border-color:#5b1a1a}
+  /* red warning bell for overdue > 1 hr */
+  .bell{position:absolute;top:9px;right:10px;font-size:20px;color:#ef4444;
+    animation:bell 1s infinite;filter:drop-shadow(0 0 6px rgba(239,68,68,.8))}
+  @keyframes bell{0%,100%{transform:rotate(-12deg)}25%{transform:rotate(12deg)}50%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+  .over-banner{background:linear-gradient(90deg,rgba(239,68,68,.18),rgba(239,68,68,.05));
+    border:1px solid rgba(239,68,68,.5);color:#fca5a5;border-radius:12px;padding:10px 14px;
+    font-weight:800;font-size:14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;
+    animation:pulseB 1.4s infinite}
+  @keyframes pulseB{0%,100%{opacity:1}50%{opacity:.6}}
+  .over-banner .bicon{font-size:20px;animation:bell 1s infinite}
+  /* duration stepper in modal */
+  .dur-stepper{display:flex;align-items:center;gap:10px}
+  .dur-stepper button{width:64px;height:44px;border-radius:11px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--txt);font-size:15px;font-weight:800;cursor:pointer;transition:.12s}
+  .dur-stepper button:hover{border-color:var(--blue);background:#1a2b4d}
+  .dur-val{flex:1;text-align:center;font-size:19px;font-weight:800;background:var(--panel);
+    border:1px solid var(--line);border-radius:11px;padding:10px;color:#eafff2}
+  .dur-hint{font-size:11.5px;color:var(--muted2);margin-top:6px}
+  /* quick start button on waiting items */
+  .startbtn{flex:none;margin-left:8px;background:#16351f;border:1px solid #22c55e;color:#4ade80;
+    font-weight:800;font-size:12px;border-radius:8px;padding:6px 9px;cursor:pointer;transition:.12s}
+  .startbtn:hover{background:#1c4a2a}
   .qhead{font-size:12px;font-weight:800;color:var(--muted);display:flex;align-items:center;gap:6px;
     text-transform:uppercase;letter-spacing:.5px}
   .qlist{display:flex;flex-direction:column;gap:7px}
@@ -206,6 +246,8 @@
     <div class="stat done"><div class="n" id="sDone">0</div><div class="l">✓ เสร็จแล้ว</div></div>
   </div>
 
+  <div id="overBanner"></div>
+
   <div class="grid" id="grid"></div>
 
   <div class="pager" id="pager">
@@ -250,12 +292,11 @@
         <button data-type="floating">📌 ลอยไว้</button>
         <button data-type="done">✓ เสร็จ</button>
       </div>
-      <div class="grid3">
+      <div class="grid2">
         <div class="field"><label>ห้องผ่าตัด</label>
           <select id="cRoom"></select></div>
         <div class="field"><label>แผนก (สีเคส)</label>
           <select id="cDept"></select></div>
-        <div class="field"><label>ลำดับคิว</label><input type="number" id="cOrder" min="1" value="1" /></div>
       </div>
       <div class="grid2">
         <div class="field"><label>ชื่อผู้ป่วย</label><input id="cName" placeholder="ชื่อ-สกุล" /></div>
@@ -271,9 +312,14 @@
         <div class="field"><label>ศัลยแพทย์</label><select id="cSurg"></select></div>
       </div>
       <div class="field"><label>หัตถการ</label><input id="cProc" placeholder="ชื่อหัตถการ" /></div>
-      <div class="grid2">
-        <div class="field"><label>เวลาเริ่ม</label><input type="time" id="cStart" /></div>
-        <div class="field"><label>เวลาสิ้นสุด (คาด)</label><input type="time" id="cEnd" /></div>
+      <div class="field">
+        <label>ระยะเวลา operation (ที่คาด)</label>
+        <div class="dur-stepper">
+          <button type="button" id="durMinus">−30</button>
+          <div class="dur-val" id="durVal">60 นาที</div>
+          <button type="button" id="durPlus">+30</button>
+        </div>
+        <div class="dur-hint" id="durHint">เริ่มจับเวลาจริงเมื่อกด “▶ เริ่มผ่า” หรือบันทึกเป็น “กำลังผ่า”</div>
       </div>
       <div class="field"><label>หมายเหตุ</label><textarea id="cNote" placeholder="หมายเหตุ"></textarea></div>
       <div class="row-btns">
@@ -416,7 +462,9 @@ function toast(msg,kind){
 /* ---------- stable id for a case ---------- */
 function caseId(c){
   if(c.id) return c.id;
-  return [c.room||"",c.type||"",c.order||"",c.hn||"",c.patientName||""].join("|");
+  // identity from stable fields only (NOT room/type/order which change during the day),
+  // so overrides keep matching the same sheet row after reorder / move / status change
+  return [c.hn||"",c.patientName||"",c.procedure||""].join("|");
 }
 
 /* ---------- CSV parsing ---------- */
@@ -550,6 +598,47 @@ function commitEdit(){
 /* ============================================================
    RENDER
    ============================================================ */
+/* ---------- time helpers (HH:MM) ---------- */
+function nowHHMM(){
+  const d=new Date();
+  return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+}
+function nowMinutes(){ const d=new Date(); return d.getHours()*60+d.getMinutes(); }
+function toMin(t){
+  if(!t) return null;
+  const m=String(t).match(/^(\d{1,2}):(\d{2})/); if(!m) return null;
+  return (+m[1])*60+(+m[2]);
+}
+function fromMin(m){
+  m=((m%1440)+1440)%1440;
+  return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");
+}
+function fmtDur(min){
+  min=Math.max(0,Math.round(min));
+  const h=Math.floor(min/60), m=min%60;
+  if(h&&m) return h+" ชม. "+m+" นาที";
+  if(h) return h+" ชม.";
+  return m+" นาที";
+}
+/* planned duration in minutes for a case: explicit durationMin, else end-start, else 60 */
+function planMin(c){
+  if(c.durationMin) return parseInt(c.durationMin,10)||60;
+  const s=toMin(c.startTime), e=toMin(c.endTime);
+  if(s!=null && e!=null){ let d=e-s; if(d<=0)d+=1440; return d; }
+  return 60;
+}
+/* progress info for a CURRENT case that has an actual start time */
+function progressInfo(c){
+  const s=toMin(c.startTime);
+  if(s==null) return null;
+  const total=planMin(c);
+  let elapsed=nowMinutes()-s; if(elapsed<-720) elapsed+=1440; // handle across-midnight
+  if(elapsed<0) elapsed=0;
+  const over=elapsed-total;                 // >0 means past expected end
+  const pct=Math.max(0,Math.min(100, total>0?(elapsed/total*100):0));
+  return { total, elapsed, over, pct, alarm: over>60 };  // alarm when >1 hr overdue
+}
+
 function deptOf(room){ return ROOM_DEPT[room]||"flexible"; }
 function deptMeta(d){ return DEPT_META[d]||DEPT_META.flexible; }
 /* department for a specific case: explicit dept wins, else room's dept */
@@ -560,6 +649,7 @@ function deptChip(d){ const m=deptMeta(d); return `<span class="deptchip" style=
 
 function render(){
   const cases=mergedCases();
+  state._overdue=[];
   const byRoom={}; ROOMS.forEach(r=>byRoom[r]={current:null,waiting:[],done:[]});
   const floating=[]; const doneAll=[];
   let nOp=0,nWait=0,nDone=0;
@@ -575,7 +665,8 @@ function render(){
     else if(t==="done"){ byRoom[c.room].done.push(c); doneAll.push(c); nDone++; }
     else { byRoom[c.room].waiting.push(c); nWait++; }
   });
-  ROOMS.forEach(r=>byRoom[r].waiting.sort((a,b)=>(+a.order||99)-(+b.order||99)));
+  // stable sort: explicit order first, blanks keep their row (sheet) order → auto 1,2,3…
+  ROOMS.forEach(r=>byRoom[r].waiting.sort((a,b)=>((+a.order||9999)-(+b.order||9999))));
 
   $("sOp").textContent=nOp; $("sWait").textContent=nWait; $("sDone").textContent=nDone;
   $("sAll").textContent=nOp+nWait+nDone+floating.length;
@@ -597,6 +688,13 @@ function render(){
     $("pager").classList.remove("show");
     state.pagesCount=1;
   }
+
+  /* overdue banner (>1 hr past expected) */
+  const ob=$("overBanner");
+  if(state._overdue.length){
+    const txt=state._overdue.map(o=>`${o.room} (${esc(o.name)}) เกิน ${fmtDur(o.over)}`).join(" · ");
+    ob.innerHTML=`<div class="over-banner"><span class="bicon">🔔</span><span>เคสเกินเวลาที่คาด &gt; 1 ชม.: ${txt}</span></div>`;
+  }else ob.innerHTML="";
 
   /* floating */
   const fw=$("floatWrap"),fg=$("floatGrid");
@@ -656,16 +754,28 @@ function roomCard(room,data){
   const now=document.createElement("div");
   if(data.current){
     const c=data.current;
-    now.className="now active";
+    const pi=progressInfo(c);
+    now.className="now active"+(pi&&pi.over>0?" over":"");
     now.style.borderLeft="5px solid "+deptMeta(caseDept(c)).color;
+    let progHTML="";
+    if(pi){
+      const remain = pi.over>=0 ? ("เกิน +"+fmtDur(pi.over)) : ("เหลือ "+fmtDur(-pi.over));
+      progHTML=`<div class="prog">
+        <div class="prog-top"><span>ผ่านไป ${fmtDur(pi.elapsed)} / ${fmtDur(pi.total)}</span><span>${remain}</span></div>
+        <div class="prog-track"><div class="prog-fill" style="width:${pi.pct}%"></div></div>
+      </div>`;
+    }
     now.innerHTML=`<div class="tag"><span class="pulse"></span>กำลังผ่าตัด ${deptChip(caseDept(c))}</div>
-      ${c.startTime?`<div class="time">${esc(c.startTime)}${c.endTime?"–"+esc(c.endTime):""}</div>`:""}
+      ${pi&&pi.alarm?`<div class="bell" title="เกินเวลาที่คาด > 1 ชม.">🔔</div>`:
+        (c.startTime?`<div class="time">${esc(c.startTime)}${c.endTime?"–"+esc(c.endTime):""}</div>`:"")}
       <div class="pname">${esc(c.patientName)||"(ไม่ระบุชื่อ)"}</div>
       <div class="meta">HN ${esc(c.hn)||"-"} · ${esc(c.age)||"-"} ปี · ${esc(c.anesthesia)||"-"}</div>
       <div class="proc">${esc(c.procedure)||""}</div>
       ${surgHTML(c)}
+      ${progHTML}
       ${noteHTML(c)}`;
     now.onclick=()=>openCase(c);
+    if(pi&&pi.alarm) state._overdue.push({room, name:c.patientName||"(ไม่ระบุ)", over:pi.over});
   }else{
     now.className="now empty";
     now.innerHTML=`<div class="tag">ว่าง — ไม่มีเคสกำลังผ่าตัด</div>`;
@@ -682,7 +792,7 @@ function roomCard(room,data){
     data.waiting.forEach((c,i)=>{
       const it=document.createElement("div"); it.className="qitem";
       it.style.borderLeft="4px solid "+deptMeta(caseDept(c)).color;
-      it.innerHTML=`<div class="qnum">${esc(c.order)||(i+1)}</div>
+      it.innerHTML=`<div class="qnum">${i+1}</div>
         <div style="min-width:0;flex:1"><div class="pn">${esc(c.patientName)||"(ไม่ระบุ)"}</div>
         <div class="pm">${esc(c.procedure)||""}</div>
         ${surgHTML(c)}
@@ -690,6 +800,10 @@ function roomCard(room,data){
         <div class="right">${esc(c.anesthesia)||""}<br>${esc(c.startTime)||""}</div>`;
       it.onclick=()=>openCase(c);
       if(state.unlocked){
+        const sb=document.createElement("button"); sb.className="startbtn"; sb.textContent="▶ เริ่ม";
+        sb.title="ส่งขึ้นเป็นกำลังผ่า และเริ่มจับเวลาเดี๋ยวนี้";
+        sb.onclick=ev=>{ev.stopPropagation();startCase(c);};
+        it.appendChild(sb);
         const mv=document.createElement("div"); mv.className="qmove";
         const up=document.createElement("button"); up.textContent="▲"; up.title="เลื่อนขึ้น";
         up.disabled=(i===0);
@@ -710,7 +824,7 @@ function roomCard(room,data){
   // add buttons
   const ar=document.createElement("div"); ar.className="add-row";
   const b1=document.createElement("button"); b1.className="mini"; b1.textContent="＋ เพิ่มคิว";
-  b1.onclick=()=>openCase({room,type:"waiting",order:String((data.waiting.length||0)+1)});
+  b1.onclick=()=>openCase({room,type:"waiting",order:""});
   ar.appendChild(b1);
   body.appendChild(ar);
 
@@ -746,16 +860,15 @@ function openCase(c){
     fillSelect($("cRoom"), ["",...ROOMS], _editing.room||"", v=>v||"(ไม่ระบุห้อง)");
     fillSelect($("cSurg"), ["",...getSurgeons()], _editing.surgeon||"", v=>v||"(ไม่ระบุ)");
     fillSelect($("cDept"), Object.keys(DEPT_META), caseDept(_editing), v=>deptMeta(v).label);
-    $("cOrder").value=_editing.order||"";
     $("cName").value=_editing.patientName||"";
     $("cHN").value=_editing.hn||"";
     $("cAge").value=_editing.age||"";
     $("cAnes").value=_editing.anesthesia||"";
     $("cProc").value=_editing.procedure||"";
-    $("cStart").value=_editing.startTime||"";
-    $("cEnd").value=_editing.endTime||"";
+    state.editDuration = planMin(_editing);
+    updateDurDisplay();
     $("cNote").value=_editing.note||"";
-    setType(_editing.type||"current");
+    setType(_editing.type||"waiting");
     $("caseTitle").textContent=state.editingId?"✏️ แก้ไขเคส":"⬆️ เพิ่มเคสใหม่";
     $("cDelete").style.display=state.editingId?"":"none";
     openModal("caseOverlay");
@@ -766,6 +879,21 @@ function setType(t){
   document.querySelectorAll("#typeSeg button").forEach(b=>{
     b.classList.toggle("active",b.dataset.type===t);
   });
+  const hint=$("durHint");
+  if(hint){
+    hint.textContent = (t==="current")
+      ? "จะเริ่มจับเวลาจริงตั้งแต่ตอนกดบันทึก (นับตามระยะเวลานี้)"
+      : "เริ่มจับเวลาจริงเมื่อกด “▶ เริ่มผ่า” หรือบันทึกเป็น “กำลังผ่า”";
+  }
+}
+function updateDurDisplay(){
+  if(!state.editDuration) state.editDuration=60;
+  const m=state.editDuration;
+  $("durVal").textContent = m>=60 ? (m+" นาที · "+fmtDur(m)) : (m+" นาที");
+}
+function changeDur(delta){
+  state.editDuration=Math.max(30,(state.editDuration||60)+delta);
+  updateDurDisplay();
 }
 function fillSelect(sel,vals,selected,labelFn){
   sel.innerHTML="";
@@ -779,27 +907,39 @@ function fillSelect(sel,vals,selected,labelFn){
 function saveCase(){
   const room=$("cRoom").value;
   const t=state.editingType;
+  const dur=state.editDuration||60;
+  // preserve any actual times already recorded on the case
+  let startTime=_editing.startTime||"", endTime=_editing.endTime||"";
+  if(t==="current"){
+    if(!startTime) startTime=nowHHMM();          // start real timer at moment of save
+    endTime=fromMin(toMin(startTime)+dur);       // expected end = start + planned duration
+  }else if(t==="waiting"||t==="floating"){
+    startTime=""; endTime="";                    // not started yet
+  }
   const c={
     room: (t==="floating")?"":room,
     dept: $("cDept").value || deptOf(room),
     surgeon:$("cSurg").value,
     roomStatus:"",
     type:t,
-    order:$("cOrder").value,
+    order:_editing.order||"",     // order is auto-managed by row position, no manual input
     patientName:$("cName").value.trim(),
     hn:$("cHN").value.trim(),
     age:$("cAge").value,
     anesthesia:$("cAnes").value,
     procedure:$("cProc").value.trim(),
-    startTime:$("cStart").value,
-    endTime:$("cEnd").value,
+    startTime, endTime,
+    durationMin:String(dur),
     note:$("cNote").value.trim()
   };
   if(!c.patientName && !c.procedure){ toast("กรุณาใส่ชื่อผู้ป่วยหรือหัตถการ","err"); return; }
-  // assign stable id
-  c.id = state.editingId || ("local-"+Date.now()+"-"+Math.random().toString(36).slice(2,7));
+  // stable id: existing id when editing, else derive from fields so it matches the
+  // same row once it round-trips back through the sheet (avoids duplicates)
+  c.id = state.editingId || caseId(c);
   // remove old override under previous id if id changed
   if(state.editingId && state.editingId!==c.id) delete state.overrides[state.editingId];
+  // saving as "กำลังผ่า" auto-completes whatever was operating in that room
+  if(t==="current") finishCurrentInRoom(c.room, c.id);
   state.overrides[c.id]=c;
   closeModal("caseOverlay");
   commitEdit();
@@ -812,17 +952,49 @@ function deleteCase(){
   commitEdit();
   toast("ลบเคสแล้ว","ok");
 }
-/* move a waiting case up/down by swapping order with its neighbour */
+/* move a waiting case up/down, then renumber the whole room queue 1..n */
 function reorder(list, idx, dir){
   const j=idx+dir;
   if(j<0||j>=list.length) return;
-  const a=list[idx], b=list[j];
-  const ida=caseId(a), idb=caseId(b);
-  const ao=parseInt(a.order,10)||(idx+1);
-  const bo=parseInt(b.order,10)||(j+1);
-  state.overrides[ida]=Object.assign({},a,{order:String(bo),id:ida});
-  state.overrides[idb]=Object.assign({},b,{order:String(ao),id:idb});
+  const arr=list.slice();
+  const [moved]=arr.splice(idx,1); arr.splice(j,0,moved);
+  arr.forEach((c,k)=>{
+    const id=caseId(c);
+    state.overrides[id]=Object.assign({},c,{order:String(k+1),id});
+  });
   commitEdit();
+}
+/* mark any case still "current" in a room as done (auto-complete previous case) */
+function finishCurrentInRoom(room, exceptId){
+  if(!room) return false;
+  let finished=false;
+  mergedCases().forEach(c=>{
+    if(c.room===room && c.type==="current"){
+      const id=caseId(c);
+      if(id===exceptId) return;
+      state.overrides[id]=Object.assign({},c,{type:"done",id});
+      finished=true;
+    }
+  });
+  return finished;
+}
+/* promote a waiting/floating case to CURRENT and start the real timer now.
+   The case currently operating in that room is auto-set to "done". */
+function startCase(c){
+  requireUnlock(()=>{
+    const id=caseId(c);
+    const room=(c.room&&ROOMS.includes(c.room))?c.room:c.room||"";
+    const finished=finishCurrentInRoom(room, id);
+    const st=nowHHMM();
+    const dur=planMin(c);
+    const nc=Object.assign({},c,{
+      type:"current", startTime:st, endTime:fromMin(toMin(st)+dur),
+      durationMin:String(dur), id
+    });
+    state.overrides[id]=nc;
+    commitEdit();
+    toast("เริ่มจับเวลา "+(room||"")+" แล้ว ▶"+(finished?" (เคสก่อนหน้า → เสร็จ)":""),"ok");
+  });
 }
 function undoDone(c){
   requireUnlock(()=>{
@@ -921,6 +1093,8 @@ function init(){
   document.querySelectorAll("#typeSeg button").forEach(b=>b.onclick=()=>setType(b.dataset.type));
   $("cSave").onclick=saveCase;
   $("cDelete").onclick=deleteCase;
+  $("durMinus").onclick=()=>changeDur(-30);
+  $("durPlus").onclick=()=>changeDur(30);
   // when picking a real room, auto-match the dept color to that room
   $("cRoom").addEventListener("change",()=>{
     const r=$("cRoom").value;
@@ -979,6 +1153,8 @@ function init(){
   });
 
   tickClock(); setInterval(tickClock,1000);
+  // refresh progress bars / overdue alerts every 30s (skip while a modal is open)
+  setInterval(()=>{ if(!document.querySelector(".overlay.show")) render(); },30000);
   if(state.rotate) setRotate(true);
   render();
   startPolling();
