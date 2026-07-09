@@ -342,7 +342,7 @@
       </div>
       <div class="field"><label>Published CSV URL (อ่าน)</label><input id="setCsv" placeholder="https://docs.google.com/.../pub?output=csv" /></div>
       <div class="field"><label>อัปเดตทุก (วินาที)</label>
-        <select id="setInterval"><option value="10">10 วินาที</option><option value="15" selected>15 วินาที</option>
+        <select id="setInterval"><option value="5">5 วินาที</option><option value="10">10 วินาที</option><option value="15" selected>15 วินาที</option>
           <option value="30">30 วินาที</option><option value="60">60 วินาที</option></select></div>
       <div class="help" style="margin-top:4px">
         <b>✏️ Write-back (เขียนกลับ Sheet):</b> ใส่ URL จาก <b>Google Apps Script</b> (Web App) เพื่อให้แอปส่งข้อมูลกลับเข้า Sheet เมื่อ add / edit / delete / undo — วิธี deploy อยู่ในไฟล์คู่มือ setup
@@ -423,6 +423,8 @@ let state = {
   page: 0,
   pagesCount: 1,
   graceUntil: 0,     // ignore CSV overwrites until this time (after a push)
+  remoteVer: null,   // [FIX #2] write-version ล่าสุดจากสคริปต์ (กัน snapshot เก่าทับ)
+  writeToken: "",    // [FIX #4] token จาก action=auth — แนบไปกับทุกการเขียน
   editingId: null,
   editingType: "current"
 };
@@ -460,6 +462,8 @@ function toast(msg,kind){
 }
 
 /* ---------- stable id for a case ---------- */
+/* [FIX #1] id สุ่มถาวรสำหรับเคสใหม่ (ถูกเก็บลงคอลัมน์ ID ใน Sheet) */
+function genId(){ return "c"+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 function caseId(c){
   if(c.id) return c.id;
   // identity from stable fields only (NOT room/type/order which change during the day),
@@ -486,8 +490,11 @@ function parseCSV(text){
   if(cur!==""||row.length){row.push(cur);rows.push(row);}
   return rows;
 }
+/* [FIX #1] เพิ่ม 2 คอลัมน์ท้ายตาราง: ระยะเวลา(นาที) และ ID — สคริปต์เขียน header ให้เอง
+   แถวเก่า 14 คอลัมน์ยังอ่านได้ (2 ช่องท้ายว่าง แล้วถูกเติมเมื่อบันทึกครั้งถัดไป) */
 const COLS=["room","dept","surgeon","roomStatus","type","order",
-            "patientName","hn","age","anesthesia","procedure","startTime","endTime","note"];
+            "patientName","hn","age","anesthesia","procedure","startTime","endTime","note",
+            "durationMin","id"];
 function rowsToCases(rows){
   if(!rows.length) return [];
   const out=[];
@@ -525,21 +532,66 @@ function mergedCases(){
 function setStatus(kind,text){
   const el=$("status"); el.className="status "+kind; $("statusText").textContent=text;
 }
-async function poll(){
+/* [REALTIME FIX] อ่านข้อมูลสดผ่าน Apps Script (?action=read) เป็นหลัก
+   เพราะ "Publish to web" CSV มี cache ฝั่ง Google ~1–5 นาที (สาเหตุหลักที่ไม่ realtime)
+   ถ้าอ่านผ่านสคริปต์ไม่ได้ (เช่นยังไม่ได้ deploy โค้ดเวอร์ชันใหม่) จึง fallback ไป CSV */
+async function fetchCases(){
+  const s=cfg.script;
+  if(s){
+    try{
+      const r=await fetch(s+(s.includes("?")?"&":"?")+"action=read&_t="+Date.now());
+      if(r.ok){
+        const j=await r.json();
+        if(j && j.ok && Array.isArray(j.cases)){
+          state.remoteVer=(j.ver!=null?j.ver:null);  // [FIX #2] จำเวอร์ชันไว้แนบตอนเขียน
+          return normalizeCases(j.cases);
+        }
+      }
+    }catch(e){ /* ตกไปอ่าน CSV ด้านล่าง */ }
+  }
   const url=cfg.csv;
-  if(!url){ setStatus("warn","ยังไม่ตั้งค่า CSV"); render(); return; }
+  if(!url) return null;
+  const sep=url.includes("?")?"&":"?";
+  const res=await fetch(url+sep+"_t="+Date.now());
+  if(!res.ok) throw new Error("HTTP "+res.status);
+  state.remoteVer=null;  // CSV ไม่มีเลขเวอร์ชัน — สคริปต์จะข้ามเช็ค stale ให้
+  return rowsToCases(parseCSV(await res.text()));
+}
+function normalizeCases(arr){
+  return arr.map(c0=>{
+    const c={}; COLS.forEach(k=>c[k]=c0[k]!=null?String(c0[k]).trim():"");
+    if(!c.type) c.type=c.room?"waiting":"floating";
+    c.type=c.type.toLowerCase();
+    return c;
+  }).filter(c=>COLS.some(k=>c[k]!==""));
+}
+/* [REALTIME FIX] ลบ override ที่ round-trip กลับมาใน Sheet แล้ว (ค่าตรงกันทุก field)
+   ไม่งั้น override เก่าใน localStorage จะ "บัง" ข้อมูลใหม่จาก Sheet/เครื่องอื่นของเคสนั้นตลอดไป
+   — นี่คือสาเหตุที่แก้ใน Sheet แล้วจอนี้ไม่ยอมอัปเดตจนกว่าจะกด เริ่มต้นวันใหม่ */
+function reconcileOverrides(){
+  let changed=false;
+  const byId={}; state.remote.forEach(c=>{byId[caseId(c)]=c;});
+  Object.keys(state.overrides).forEach(id=>{
+    const ov=state.overrides[id];
+    if(!ov) return;
+    if(ov.__deleted){ if(!byId[id]){ delete state.overrides[id]; changed=true; } return; }
+    const r=byId[id];
+    if(r && COLS.every(k=>String(r[k]||"")===String(ov[k]||""))){ delete state.overrides[id]; changed=true; }
+  });
+  if(changed) saveOverrides();
+}
+async function poll(){
+  if(!cfg.script && !cfg.csv){ setStatus("warn","ยังไม่ตั้งค่า URL"); render(); return; }
   setStatus("warn","กำลัง sync…");
   try{
-    const sep=url.includes("?")?"&":"?";
-    const res=await fetch(url+sep+"_t="+Date.now());
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    const text=await res.text();
-    const cases=rowsToCases(parseCSV(text));
+    const cases=await fetchCases();
+    if(cases===null){ setStatus("warn","ยังไม่ตั้งค่า URL"); render(); return; }
     // during grace window after a local push, keep local view authoritative
     if(Date.now()<state.graceUntil){
       setStatus("ok","sync แล้ว (รอ Sheet อัปเดต)");
     }else{
       state.remote=cases;
+      reconcileOverrides();
       setStatus("ok","เชื่อมต่อแล้ว");
     }
     render();
@@ -558,15 +610,54 @@ function startPolling(){
    Uses a hidden <form> POST into a hidden <iframe>: this is NOT subject to CORS,
    the browser follows Apps Script's 302 redirect natively, and the JSON arrives
    reliably as the `payload` form field (e.parameter.payload in doPost). */
-function pushSnapshot(){
+/* [FIX #2+#3] push snapshot กลับ Sheet แบบ "ยืนยันผลได้จริง":
+   - POST ด้วย fetch (content-type text/plain — เป็น simple request ไม่ติด CORS preflight
+     และอ่าน JSON คำตอบจาก Apps Script ได้) → รู้จริงว่าเขียนสำเร็จ/ล้มเหลว ไม่ใช่ ✓ หลอก ๆ
+   - แนบ baseVer: ถ้ามีเครื่องอื่นเขียนคั่น สคริปต์ตอบ "stale" → ดึงข้อมูลล่าสุดมา merge
+     กับ overrides ของเราแล้วส่งใหม่ 1 ครั้ง (ไม่ทับงานเครื่องอื่นทิ้งทั้งชุด)
+   - แนบ token (ได้ตอนปลดล็อก) → สคริปต์ปฏิเสธคนที่รู้แค่ URL /exec  [FIX #4]
+   - ถ้า fetch ล้มเหลว (เน็ตสะดุด) fallback เป็น hidden-form POST แบบเดิม */
+async function pushSnapshot(isRetry){
   const url=cfg.script;
   if(!url){ toast("บันทึกในเครื่องแล้ว (ยังไม่ได้ตั้ง Write URL)","warn"); return; }
   const cases=mergedCases().map(c=>{
-    const o={}; COLS.forEach(k=>o[k]=c[k]!==undefined?c[k]:""); return o;
+    const o={}; COLS.forEach(k=>o[k]=c[k]!==undefined?c[k]:"");
+    if(!o.id) o.id=caseId(c);  // [FIX #1] เคสเก่าที่ยังไม่มี id → เก็บ composite id ให้คงที่
+    return o;
   });
-  const payload=JSON.stringify({action:"replace",cases});
+  const payload={action:"replace",cases,baseVer:state.remoteVer,token:state.writeToken||""};
+  setStatus("warn","กำลังบันทึกขึ้น Sheet…");
   try{
-    setStatus("warn","กำลังบันทึกขึ้น Sheet…");
+    const r=await fetch(url,{method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify(payload)});
+    const j=await r.json();
+    if(j && j.ok){
+      state.remoteVer=(j.ver!=null?j.ver:state.remoteVer);
+      state.graceUntil=Date.now()+3000;
+      setStatus("ok","บันทึกขึ้น Sheet แล้ว ✓");
+      toast("บันทึกขึ้น Google Sheet แล้ว ✓ (ยืนยันแล้ว)","ok");
+      setTimeout(poll,3200);  // ดึงกลับ → reconcileOverrides เคลียร์ override ให้อัตโนมัติ
+      return;
+    }
+    if(j && j.error==="stale" && !isRetry){
+      toast("มีการแก้จากเครื่องอื่น — กำลังรวมข้อมูลแล้วบันทึกใหม่","warn");
+      state.graceUntil=0;
+      await poll();            // ได้ remote + ver ล่าสุด (overrides ของเรายังทับ merged view)
+      return pushSnapshot(true);
+    }
+    if(j && j.error==="unauthorized"){
+      setStatus("err","Sheet ปฏิเสธการเขียน");
+      toast("บันทึกไม่เข้า Sheet — token ไม่ถูกต้อง ลองล็อก 🔒 แล้วปลดล็อกใหม่","err");
+      return;
+    }
+    throw new Error((j&&j.error)||"write failed");
+  }catch(e){
+    legacyFormPush(JSON.stringify(payload)); // สคริปต์เก่า/เน็ตสะดุด → วิธีเดิม (ไม่ยืนยันผล)
+  }
+}
+function legacyFormPush(payload){
+  try{
     let ifr=document.getElementById("orm_sink");
     if(!ifr){
       ifr=document.createElement("iframe");
@@ -574,16 +665,15 @@ function pushSnapshot(){
       document.body.appendChild(ifr);
     }
     const form=document.createElement("form");
-    form.method="POST"; form.action=url; form.target="orm_sink"; form.style.display="none";
+    form.method="POST"; form.action=cfg.script; form.target="orm_sink"; form.style.display="none";
     const ta=document.createElement("textarea"); ta.name="payload"; ta.value=payload;
     form.appendChild(ta);
     document.body.appendChild(form);
     form.submit();
     setTimeout(()=>{ try{form.remove();}catch(e){} },3000);
-    // can't read cross-origin result; assume sent and protect local view briefly
-    state.graceUntil=Date.now()+Math.max(20,cfg.interval+5)*1000;
-    setStatus("ok","บันทึกขึ้น Sheet แล้ว");
-    toast("บันทึกขึ้น Google Sheet แล้ว ✓","ok");
+    state.graceUntil=Date.now()+10000;
+    setStatus("ok","ส่งขึ้น Sheet แล้ว (โหมดสำรอง)");
+    toast("ส่งขึ้น Sheet โหมดสำรอง — อัปเดต .gs + deploy ใหม่เพื่อให้ยืนยันผลได้","warn");
   }catch(e){
     setStatus("err","บันทึกขึ้น Sheet ไม่ได้");
     toast("บันทึกขึ้น Sheet ไม่ได้ — แต่เก็บในเครื่องแล้ว","err");
@@ -842,13 +932,33 @@ function requireUnlock(then){
   state._afterUnlock=then;
   $("pwInput").value=""; openModal("pwOverlay"); setTimeout(()=>$("pwInput").focus(),50);
 }
-function doUnlock(){
-  if($("pwInput").value===PASSWORD){
-    state.unlocked=true; $("lockBtn").textContent="🔓"; $("lockBtn").classList.add("active");
-    closeModal("pwOverlay"); toast("ปลดล็อกแล้ว — แก้ไขได้","ok");
-    render();
-    const f=state._afterUnlock; state._afterUnlock=null; if(f) f();
-  }else toast("รหัสผ่านไม่ถูกต้อง","err");
+/* [FIX #4] ตรวจรหัสผ่านที่ฝั่ง Apps Script (?action=auth) แล้วรับ write token มาแนบกับ
+   ทุกการเขียน — รหัส/token จริงอยู่ในสคริปต์ ไม่โชว์ใน view-source ของหน้านี้
+   (const PASSWORD ในไฟล์นี้เหลือไว้เป็น fallback เฉพาะกรณีสคริปต์เก่า/ออฟไลน์เท่านั้น) */
+async function doUnlock(){
+  const pw=$("pwInput").value, s=cfg.script;
+  let ok=false;
+  if(s){
+    try{
+      const r=await fetch(s+(s.includes("?")?"&":"?")+"action=auth&pw="+encodeURIComponent(pw)+"&_t="+Date.now());
+      const j=await r.json();
+      if(j && j.ok && j.token){ ok=true; state.writeToken=j.token; }
+      else if(j && j.ok===false){ toast("รหัสผ่านไม่ถูกต้อง","err"); return; }
+      else if(j && j.ok && !j.token){
+        // สคริปต์เวอร์ชันเก่า (ยังไม่มี action=auth) → เช็ครหัสในเครื่องแทน
+        if(pw!==PASSWORD){ toast("รหัสผ่านไม่ถูกต้อง","err"); return; }
+        ok=true; toast("สคริปต์เป็นเวอร์ชันเก่า — ควรวางโค้ด .gs ใหม่แล้ว deploy ใหม่","warn");
+      }
+    }catch(e){ /* ออฟไลน์/สคริปต์ล่ม → เช็คในเครื่องด้านล่าง */ }
+  }
+  if(!ok){
+    if(pw!==PASSWORD){ toast("รหัสผ่านไม่ถูกต้อง","err"); return; }
+    ok=true;
+  }
+  state.unlocked=true; $("lockBtn").textContent="🔓"; $("lockBtn").classList.add("active");
+  closeModal("pwOverlay"); toast("ปลดล็อกแล้ว — แก้ไขได้","ok");
+  render();
+  const f=state._afterUnlock; state._afterUnlock=null; if(f) f();
 }
 
 let _editing=null;
@@ -933,9 +1043,9 @@ function saveCase(){
     note:$("cNote").value.trim()
   };
   if(!c.patientName && !c.procedure){ toast("กรุณาใส่ชื่อผู้ป่วยหรือหัตถการ","err"); return; }
-  // stable id: existing id when editing, else derive from fields so it matches the
-  // same row once it round-trips back through the sheet (avoids duplicates)
-  c.id = state.editingId || caseId(c);
+  // [FIX #1] เคสใหม่ได้ id สุ่มถาวร (มีคอลัมน์ ID ใน Sheet แล้ว) — แก้ปัญหา id ชนกัน
+  // เมื่อผู้ป่วย+หัตถการซ้ำ และปัญหาแก้ชื่อ/HN แล้วกลายเป็นเคสใหม่ซ้ำซ้อน
+  c.id = state.editingId || genId();
   // remove old override under previous id if id changed
   if(state.editingId && state.editingId!==c.id) delete state.overrides[state.editingId];
   // saving as "กำลังผ่า" auto-completes whatever was operating in that room
