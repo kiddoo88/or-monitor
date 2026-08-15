@@ -233,7 +233,7 @@
     <div class="hspace"></div>
     <div id="status" class="status"><span class="dot"></span><span id="statusText">ยังไม่เชื่อมต่อ</span></div>
     <div class="clock" id="clock">00:00:00</div>
-    <button class="iconbtn" id="lockBtn" title="ล็อก/ปลดล็อกการแก้ไข">🔒</button>
+    <button class="iconbtn" id="lockBtn" title="เข้าสู่ระบบ Google">👤</button>
     <button class="iconbtn" id="rotateBtn" title="สลับหน้าอัตโนมัติ">🔁</button>
     <button class="iconbtn" id="fsBtn" title="เต็มจอ">📺</button>
     <button class="iconbtn" id="setBtn" title="ตั้งค่า">⚙️</button>
@@ -268,15 +268,14 @@
     <div class="done-grid" id="doneGrid"></div>
   </div>
 
-  <!-- Password modal -->
+  <!-- Google login modal -->
   <div class="overlay" id="pwOverlay">
     <div class="modal" style="max-width:380px">
-      <h3>🔒 ใส่รหัสเพื่อแก้ไข</h3>
-      <div class="sub">ป้อนรหัสผ่านเพื่อปลดล็อกการแก้ไขข้อมูล</div>
-      <div class="field"><input type="password" id="pwInput" placeholder="รหัสผ่าน" autocomplete="off" /></div>
+      <h3>🔐 เข้าสู่ระบบ</h3>
+      <div class="sub">ใช้บัญชี Google ที่ผู้ดูแลอนุมัติแล้วเพื่อดูหรือแก้ไขข้อมูล</div>
       <div class="row-btns">
         <button class="btn" onclick="closeModal('pwOverlay')">ยกเลิก</button>
-        <button class="btn primary" id="pwSubmit">เข้าสู่ระบบ</button>
+        <button class="btn primary" id="pwSubmit">ดำเนินการต่อด้วย Google</button>
       </div>
     </div>
   </div>
@@ -285,7 +284,7 @@
   <div class="overlay" id="caseOverlay">
     <div class="modal wide">
       <h3 id="caseTitle">✏️ แก้ไขเคส</h3>
-      <div class="sub">แก้ไขข้อมูลผู้ป่วย / ย้ายห้อง / เปลี่ยนสถานะ — บันทึกแล้วจะ sync กลับ Google Sheet</div>
+      <div class="sub">แก้ไขข้อมูลผู้ป่วย / ย้ายห้อง / เปลี่ยนสถานะ — ทุกเครื่องจะเห็นการเปลี่ยนแปลงทันที</div>
       <div class="seg" id="typeSeg" style="margin-bottom:14px">
         <button data-type="current">🟢 กำลังผ่า</button>
         <button data-type="waiting">🟡 รอคิว</button>
@@ -333,31 +332,24 @@
   <!-- Settings modal -->
   <div class="overlay" id="setOverlay">
     <div class="modal wide">
-      <h3>⚙️ ตั้งค่า Google Sheets</h3>
+      <h3>⚙️ สถานะระบบ</h3>
       <div class="help">
-        <b>อ่านข้อมูล:</b> ใน Google Sheets ไปที่ File → Share → <b>Publish to web</b> → เลือกชีต → <b>CSV</b> → คัดลอก URL มาวาง<br>
-        <b>คอลัมน์ (row 1 = header):</b><br>
-        <code>ห้อง | แผนก | แพทย์ | สถานะห้อง | ประเภท | ลำดับ | ชื่อผู้ป่วย | HN | อายุ | Anesthesia | หัตถการ | เวลาเริ่ม | เวลาสิ้นสุด | หมายเหตุ</code><br>
-        <b>ประเภท:</b> <code>current</code> / <code>waiting</code> / <code>floating</code> / <code>done</code>
+        <b>ฐานข้อมูล:</b> Supabase Realtime ส่วนกลาง<br>
+        <b>การเข้าถึง:</b> ใช้ Google Login และสิทธิ์ <code>viewer</code> / <code>editor</code> / <code>admin</code><br>
+        การตั้งค่านี้ถูกจัดการจากส่วนกลาง จึงไม่ต้องตั้ง URL แยกในแต่ละเครื่อง
       </div>
-      <div class="field"><label>Published CSV URL (อ่าน)</label><input id="setCsv" placeholder="https://docs.google.com/.../pub?output=csv" /></div>
-      <div class="field"><label>อัปเดตทุก (วินาที)</label>
-        <select id="setInterval"><option value="5">5 วินาที</option><option value="10">10 วินาที</option><option value="15" selected>15 วินาที</option>
-          <option value="30">30 วินาที</option><option value="60">60 วินาที</option></select></div>
       <div class="help" style="margin-top:4px">
-        <b>✏️ Write-back (เขียนกลับ Sheet):</b> ใส่ URL จาก <b>Google Apps Script</b> (Web App) เพื่อให้แอปส่งข้อมูลกลับเข้า Sheet เมื่อ add / edit / delete / undo — วิธี deploy อยู่ในไฟล์คู่มือ setup
+        <b>🔄 ทดสอบการเชื่อมต่อ:</b> กดปุ่มด้านล่างเพื่อโหลดข้อมูลล่าสุดจากระบบกลาง
       </div>
-      <div class="field"><label>Apps Script Write URL (เขียน)</label><input id="setScript" placeholder="https://script.google.com/macros/s/.../exec" /></div>
-      <button class="btn" id="setTestWrite" style="width:100%;margin-bottom:6px">🧪 ทดสอบเขียน — เปิด URL ตรวจสถานะ (ต้องเห็น {"ok":true})</button>
+      <button class="btn" id="setTestWrite" style="width:100%;margin-bottom:6px">🧪 โหลดข้อมูลล่าสุด</button>
       <div class="row-btns">
-        <button class="btn" id="setTest">🔗 ทดสอบอ่าน</button>
+        <button class="btn" id="setTest">🔗 ทดสอบ Realtime</button>
         <button class="btn" onclick="closeModal('setOverlay')">ปิด</button>
-        <button class="btn primary" id="setSave">บันทึก</button>
+        <button class="btn primary" id="setSave">ตกลง</button>
       </div>
       <div class="help" style="margin-top:14px">
-        <b>🌅 เริ่มต้นวันใหม่</b> — ล้าง local edits ทั้งหมดเพื่อดึงข้อมูลจาก Google Sheet ใหม่ (ใช้ทุกเช้าหลัง incharge อัปเดต Sheet)
+        <b>🌅 ข้อมูลรายวัน</b> — เพิ่ม/ปิดเคสตามงานจริง โดยไม่ต้องย้ายหรือล้าง Sheet ทุกเช้า
       </div>
-      <button class="btn danger" id="newDayBtn" style="width:100%">🌅 เริ่มต้นวันใหม่ (ล้าง local edits)</button>
       <div style="margin-top:14px"><button class="btn" id="surgMgrBtn" style="width:100%">👨‍⚕️ จัดการรายชื่อแพทย์</button></div>
     </div>
   </div>
@@ -378,14 +370,16 @@
 
   <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ============================================================
    OR MONITOR  —  single-file dashboard
-   Read : Google Sheets "Publish to web" CSV
-   Write: Google Apps Script Web App (snapshot replace)
+   Secure Google login + Supabase Realtime
    ============================================================ */
 
-const PASSWORD = "ormtp";
+const SUPABASE_URL = "https://oatljeivibzjvwfzicjv.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_A1ePg7PEPgQVNhgKtff55Q_x3e2UZ8U";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
 const ROOMS = ["OR1","OR2","OR3","OR4","OR5","OR6","OR7"];
 const ROOM_DEPT = {
@@ -402,59 +396,33 @@ const DEPT_META = {
 };
 const DEFAULT_SURGEONS = [];
 
-/* default backend URLs — baked in so any device that opens the GitHub URL
-   shows the same data without per-device setup */
-const DEFAULT_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS37qXXgmgnxiwysUOtRxMJHCVxXbU9zSwH95n3FGnBEes8vxPdhomNctvS7pxSe7jcQxtW-_JxMbU7/pub?gid=0&single=true&output=csv";
-const DEFAULT_SCRIPT = "https://script.google.com/macros/s/AKfycbwsmiHOlMwIEk6RBhmIKWyh7sE5SMm2SHU7zhQRm-BXuXGx4BiNJiYjewVeNxZaPOg/exec";
-
 const LS = {
-  csv:"orm_csv", script:"orm_script", interval:"orm_interval",
-  surgeons:"orm_surgeons", overrides:"orm_overrides", rotate:"orm_rotate"
+  surgeons:"orm_surgeons", rotate:"orm_rotate"
 };
 
 /* ---------- state ---------- */
 let state = {
-  remote: [],        // cases parsed from CSV
-  overrides: {},     // id -> case object OR {__deleted:true}; added cases too
+  remote: [],
   unlocked: false,
-  pollTimer: null,
+  session: null,
+  profile: null,
+  channel: null,
   rotate: false,
   rotateTimer: null,
   page: 0,
   pagesCount: 1,
-  graceUntil: 0,     // ignore CSV overwrites until this time (after a push)
-  remoteVer: null,   // [FIX #2] write-version ล่าสุดจากสคริปต์ (กัน snapshot เก่าทับ)
-  writeToken: "",    // [FIX #4] token จาก action=auth — แนบไปกับทุกการเขียน
+  writeInFlight: false,
   editingId: null,
   editingType: "current"
 };
 
 /* ---------- helpers ---------- */
 const $ = id => document.getElementById(id);
-const cfg = {
-  get csv(){const v=localStorage.getItem(LS.csv);return v!==null?v:DEFAULT_CSV;},
-  set csv(v){localStorage.setItem(LS.csv,v)},
-  get script(){
-    const v=localStorage.getItem(LS.script);
-    if(v===null) return DEFAULT_SCRIPT;
-    // auto-heal: an echo / googleusercontent URL is READ-ONLY and cannot accept
-    // write-backs. Ignore it and use the proper /exec Web App URL instead.
-    if(!v.trim() || v.indexOf("googleusercontent.com")>-1 || v.indexOf("/macros/echo")>-1) return DEFAULT_SCRIPT;
-    return v;
-  },
-  set script(v){localStorage.setItem(LS.script,v)},
-  get interval(){return parseInt(localStorage.getItem(LS.interval)||"15",10)},
-  set interval(v){localStorage.setItem(LS.interval,String(v))},
-};
 function getSurgeons(){
   try{return JSON.parse(localStorage.getItem(LS.surgeons))||DEFAULT_SURGEONS.slice()}
   catch(e){return DEFAULT_SURGEONS.slice()}
 }
 function setSurgeons(arr){localStorage.setItem(LS.surgeons,JSON.stringify(arr))}
-function loadOverrides(){
-  try{state.overrides=JSON.parse(localStorage.getItem(LS.overrides))||{}}catch(e){state.overrides={}}
-}
-function saveOverrides(){localStorage.setItem(LS.overrides,JSON.stringify(state.overrides))}
 
 function toast(msg,kind){
   const t=$("toast"); t.textContent=msg; t.className="toast show "+(kind||"");
@@ -462,227 +430,82 @@ function toast(msg,kind){
 }
 
 /* ---------- stable id for a case ---------- */
-/* [FIX #1] id สุ่มถาวรสำหรับเคสใหม่ (ถูกเก็บลงคอลัมน์ ID ใน Sheet) */
-function genId(){ return "c"+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 function caseId(c){
-  if(c.id) return c.id;
-  // identity from stable fields only (NOT room/type/order which change during the day),
-  // so overrides keep matching the same sheet row after reorder / move / status change
-  return [c.hn||"",c.patientName||"",c.procedure||""].join("|");
+  return c.caseId || "";
+}
+function newCaseId(){
+  return window.crypto&&crypto.randomUUID ? crypto.randomUUID() : "";
 }
 
-/* ---------- CSV parsing ---------- */
-function parseCSV(text){
-  const rows=[]; let row=[],cur="",q=false;
-  for(let i=0;i<text.length;i++){
-    const ch=text[i];
-    if(q){
-      if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; }
-      else cur+=ch;
-    }else{
-      if(ch==='"') q=true;
-      else if(ch===','){row.push(cur);cur="";}
-      else if(ch==='\n'){row.push(cur);rows.push(row);row=[];cur="";}
-      else if(ch==='\r'){/*skip*/}
-      else cur+=ch;
-    }
-  }
-  if(cur!==""||row.length){row.push(cur);rows.push(row);}
-  return rows;
-}
-/* [FIX #1] เพิ่ม 2 คอลัมน์ท้ายตาราง: ระยะเวลา(นาที) และ ID — สคริปต์เขียน header ให้เอง
-   แถวเก่า 14 คอลัมน์ยังอ่านได้ (2 ช่องท้ายว่าง แล้วถูกเติมเมื่อบันทึกครั้งถัดไป) */
-const COLS=["room","dept","surgeon","roomStatus","type","order",
-            "patientName","hn","age","anesthesia","procedure","startTime","endTime","note",
-            "durationMin","id"];
-function rowsToCases(rows){
-  if(!rows.length) return [];
-  const out=[];
-  // detect header (skip if first cell looks like header)
-  let start=0;
-  const first=(rows[0][0]||"").toLowerCase();
-  if(first.includes("ห้อง")||first.includes("room")) start=1;
-  for(let r=start;r<rows.length;r++){
-    const row=rows[r]; if(!row.length) continue;
-    if(row.every(x=>!String(x).trim())) continue;
-    const c={};
-    COLS.forEach((k,i)=>c[k]=(row[i]!==undefined?String(row[i]).trim():""));
-    if(!c.type) c.type=c.room?"waiting":"floating";
-    c.type=c.type.toLowerCase();
-    out.push(c);
-  }
-  return out;
-}
-
-/* ---------- merge remote + overrides ---------- */
+/* ---------- confirmed server state ---------- */
 function mergedCases(){
-  const map={};
-  state.remote.forEach(c=>{map[caseId(c)]=Object.assign({},c);});
-  Object.keys(state.overrides).forEach(id=>{
-    const ov=state.overrides[id];
-    if(ov && ov.__deleted){ delete map[id]; }
-    else { map[id]=Object.assign({},ov); }
-  });
-  return Object.values(map);
+  return state.remote.map(c=>Object.assign({},c));
 }
 
 /* ============================================================
-   FETCH / SYNC
+   SUPABASE AUTH / REALTIME
    ============================================================ */
 function setStatus(kind,text){
   const el=$("status"); el.className="status "+kind; $("statusText").textContent=text;
 }
-/* [REALTIME FIX] อ่านข้อมูลสดผ่าน Apps Script (?action=read) เป็นหลัก
-   เพราะ "Publish to web" CSV มี cache ฝั่ง Google ~1–5 นาที (สาเหตุหลักที่ไม่ realtime)
-   ถ้าอ่านผ่านสคริปต์ไม่ได้ (เช่นยังไม่ได้ deploy โค้ดเวอร์ชันใหม่) จึง fallback ไป CSV */
-async function fetchCases(){
-  const s=cfg.script;
-  if(s){
-    try{
-      const r=await fetch(s+(s.includes("?")?"&":"?")+"action=read&_t="+Date.now());
-      if(r.ok){
-        const j=await r.json();
-        if(j && j.ok && Array.isArray(j.cases)){
-          state.remoteVer=(j.ver!=null?j.ver:null);  // [FIX #2] จำเวอร์ชันไว้แนบตอนเขียน
-          return normalizeCases(j.cases);
-        }
-      }
-    }catch(e){ /* ตกไปอ่าน CSV ด้านล่าง */ }
-  }
-  const url=cfg.csv;
-  if(!url) return null;
-  const sep=url.includes("?")?"&":"?";
-  const res=await fetch(url+sep+"_t="+Date.now());
-  if(!res.ok) throw new Error("HTTP "+res.status);
-  state.remoteVer=null;  // CSV ไม่มีเลขเวอร์ชัน — สคริปต์จะข้ามเช็ค stale ให้
-  return rowsToCases(parseCSV(await res.text()));
-}
-function normalizeCases(arr){
-  return arr.map(c0=>{
-    const c={}; COLS.forEach(k=>c[k]=c0[k]!=null?String(c0[k]).trim():"");
-    if(!c.type) c.type=c.room?"waiting":"floating";
-    c.type=c.type.toLowerCase();
-    return c;
-  }).filter(c=>COLS.some(k=>c[k]!==""));
-}
-/* [REALTIME FIX] ลบ override ที่ round-trip กลับมาใน Sheet แล้ว (ค่าตรงกันทุก field)
-   ไม่งั้น override เก่าใน localStorage จะ "บัง" ข้อมูลใหม่จาก Sheet/เครื่องอื่นของเคสนั้นตลอดไป
-   — นี่คือสาเหตุที่แก้ใน Sheet แล้วจอนี้ไม่ยอมอัปเดตจนกว่าจะกด เริ่มต้นวันใหม่ */
-function reconcileOverrides(){
-  let changed=false;
-  const byId={}; state.remote.forEach(c=>{byId[caseId(c)]=c;});
-  Object.keys(state.overrides).forEach(id=>{
-    const ov=state.overrides[id];
-    if(!ov) return;
-    if(ov.__deleted){ if(!byId[id]){ delete state.overrides[id]; changed=true; } return; }
-    const r=byId[id];
-    if(r && COLS.every(k=>String(r[k]||"")===String(ov[k]||""))){ delete state.overrides[id]; changed=true; }
-  });
-  if(changed) saveOverrides();
-}
-async function poll(){
-  if(!cfg.script && !cfg.csv){ setStatus("warn","ยังไม่ตั้งค่า URL"); render(); return; }
+function bangkokParts(options){return new Intl.DateTimeFormat("en-CA",Object.assign({timeZone:"Asia/Bangkok"},options)).formatToParts(new Date());}
+function fromRow(r){return {
+  caseId:r.id, room:r.room||"", dept:r.dept||"", surgeon:r.surgeon||"", roomStatus:r.room_status||"",
+  type:r.type, order:r.queue_order==null?"":String(r.queue_order), patientName:r.patient_name||"", hn:r.hn||"",
+  age:r.age||"", anesthesia:r.anesthesia||"", procedure:r.procedure_name||"", startTime:r.start_time||"",
+  endTime:r.end_time||"", durationMin:r.duration_min==null?"":String(r.duration_min), note:r.note||"", version:r.version
+};}
+function toRow(c){return {
+  room:c.room||"", dept:c.dept||"", surgeon:c.surgeon||"", room_status:c.roomStatus||"", type:c.type,
+  queue_order:c.order===""||c.order==null?null:Number(c.order), patient_name:c.patientName||"", hn:c.hn||"",
+  age:String(c.age||""), anesthesia:c.anesthesia||"", procedure_name:c.procedure||"", start_time:c.startTime||"",
+  end_time:c.endTime||"", duration_min:c.durationMin===""||c.durationMin==null?null:Number(c.durationMin), note:c.note||""
+};}
+function canEdit(){return !!(state.profile&&state.profile.is_active&&["editor","admin"].includes(state.profile.role));}
+async function loadCases(){
+  if(!state.session) return;
   setStatus("warn","กำลัง sync…");
+  const {data,error}=await supabase.from("or_cases").select("*").order("room").order("queue_order");
+  if(error){setStatus("err",error.code==="42501"?"รอผู้ดูแลอนุมัติสิทธิ์":"sync ไม่ได้");render();return;}
+  state.remote=(data||[]).map(fromRow); setStatus("ok","เชื่อมต่อแบบ Real-time แล้ว"); render();
+}
+function startRealtime(){
+  if(state.channel) supabase.removeChannel(state.channel);
+  state.channel=supabase.channel("or-cases-live").on("postgres_changes",{event:"*",schema:"public",table:"or_cases"},loadCases).subscribe();
+}
+async function signIn(){
+  const {error}=await supabase.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin+window.location.pathname}});
+  if(error) toast("เข้าสู่ระบบไม่ได้ — "+error.message,"err");
+}
+async function signOut(){await supabase.auth.signOut();location.reload();}
+async function initAuth(){
+  const {data:{session}}=await supabase.auth.getSession(); state.session=session;
+  if(!session){setStatus("warn","กรุณาเข้าสู่ระบบ Google");render();return;}
+  const {data,error}=await supabase.from("profiles").select("role,is_active,full_name,email").single();
+  if(error){setStatus("err","อ่านสิทธิ์ผู้ใช้ไม่ได้");return;}
+  state.profile=data; state.unlocked=canEdit();
+  $("lockBtn").textContent=state.unlocked?"🔓":"👤";
+  $("lockBtn").title=state.unlocked?"ออกจากระบบ":"บัญชีผู้ใช้ / เข้าสู่ระบบ";
+  if(!data.is_active) toast("บัญชีนี้รอผู้ดูแลอนุมัติสิทธิ์","warn");
+  await loadCases(); startRealtime();
+}
+async function commitChanges(changes){
+  if(!canEdit()){toast("บัญชีนี้ไม่มีสิทธิ์แก้ไข","err");return;}
+  if(state.writeInFlight){toast("กำลังบันทึกรายการก่อนหน้า กรุณารอสักครู่","warn");return;}
+  state.writeInFlight=true; setStatus("warn","กำลังบันทึก…");
   try{
-    const cases=await fetchCases();
-    if(cases===null){ setStatus("warn","ยังไม่ตั้งค่า URL"); render(); return; }
-    // during grace window after a local push, keep local view authoritative
-    if(Date.now()<state.graceUntil){
-      setStatus("ok","sync แล้ว (รอ Sheet อัปเดต)");
-    }else{
-      state.remote=cases;
-      reconcileOverrides();
-      setStatus("ok","เชื่อมต่อแล้ว");
+    for(const change of changes){
+      const id=change.caseId||(change.case&&change.case.caseId);
+      let result;
+      if(change.operation==="delete") result=await supabase.from("or_cases").delete().eq("id",id).eq("version",change.expectedVersion).select("id");
+      else if(id&&!change.isNew) result=await supabase.from("or_cases").update(toRow(change.case)).eq("id",id).eq("version",change.expectedVersion).select("id");
+      else result=await supabase.from("or_cases").insert(toRow(change.case)).select("id");
+      if(result.error) throw result.error;
+      if(!result.data||!result.data.length) throw new Error("ข้อมูลถูกแก้ไขจากเครื่องอื่นแล้ว");
     }
-    render();
-  }catch(e){
-    setStatus("err","sync ไม่ได้ — ตรวจ URL");
-    render();
-  }
-}
-function startPolling(){
-  if(state.pollTimer) clearInterval(state.pollTimer);
-  poll();
-  state.pollTimer=setInterval(poll, cfg.interval*1000);
-}
-
-/* push the full current snapshot back to the Sheet via Apps Script.
-   Uses a hidden <form> POST into a hidden <iframe>: this is NOT subject to CORS,
-   the browser follows Apps Script's 302 redirect natively, and the JSON arrives
-   reliably as the `payload` form field (e.parameter.payload in doPost). */
-/* [FIX #2+#3] push snapshot กลับ Sheet แบบ "ยืนยันผลได้จริง":
-   - POST ด้วย fetch (content-type text/plain — เป็น simple request ไม่ติด CORS preflight
-     และอ่าน JSON คำตอบจาก Apps Script ได้) → รู้จริงว่าเขียนสำเร็จ/ล้มเหลว ไม่ใช่ ✓ หลอก ๆ
-   - แนบ baseVer: ถ้ามีเครื่องอื่นเขียนคั่น สคริปต์ตอบ "stale" → ดึงข้อมูลล่าสุดมา merge
-     กับ overrides ของเราแล้วส่งใหม่ 1 ครั้ง (ไม่ทับงานเครื่องอื่นทิ้งทั้งชุด)
-   - แนบ token (ได้ตอนปลดล็อก) → สคริปต์ปฏิเสธคนที่รู้แค่ URL /exec  [FIX #4]
-   - ถ้า fetch ล้มเหลว (เน็ตสะดุด) fallback เป็น hidden-form POST แบบเดิม */
-async function pushSnapshot(isRetry){
-  const url=cfg.script;
-  if(!url){ toast("บันทึกในเครื่องแล้ว (ยังไม่ได้ตั้ง Write URL)","warn"); return; }
-  const cases=mergedCases().map(c=>{
-    const o={}; COLS.forEach(k=>o[k]=c[k]!==undefined?c[k]:"");
-    if(!o.id) o.id=caseId(c);  // [FIX #1] เคสเก่าที่ยังไม่มี id → เก็บ composite id ให้คงที่
-    return o;
-  });
-  const payload={action:"replace",cases,baseVer:state.remoteVer,token:state.writeToken||""};
-  setStatus("warn","กำลังบันทึกขึ้น Sheet…");
-  try{
-    const r=await fetch(url,{method:"POST",
-      headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body:JSON.stringify(payload)});
-    const j=await r.json();
-    if(j && j.ok){
-      state.remoteVer=(j.ver!=null?j.ver:state.remoteVer);
-      state.graceUntil=Date.now()+3000;
-      setStatus("ok","บันทึกขึ้น Sheet แล้ว ✓");
-      toast("บันทึกขึ้น Google Sheet แล้ว ✓ (ยืนยันแล้ว)","ok");
-      setTimeout(poll,3200);  // ดึงกลับ → reconcileOverrides เคลียร์ override ให้อัตโนมัติ
-      return;
-    }
-    if(j && j.error==="stale" && !isRetry){
-      toast("มีการแก้จากเครื่องอื่น — กำลังรวมข้อมูลแล้วบันทึกใหม่","warn");
-      state.graceUntil=0;
-      await poll();            // ได้ remote + ver ล่าสุด (overrides ของเรายังทับ merged view)
-      return pushSnapshot(true);
-    }
-    if(j && j.error==="unauthorized"){
-      setStatus("err","Sheet ปฏิเสธการเขียน");
-      toast("บันทึกไม่เข้า Sheet — token ไม่ถูกต้อง ลองล็อก 🔒 แล้วปลดล็อกใหม่","err");
-      return;
-    }
-    throw new Error((j&&j.error)||"write failed");
-  }catch(e){
-    legacyFormPush(JSON.stringify(payload)); // สคริปต์เก่า/เน็ตสะดุด → วิธีเดิม (ไม่ยืนยันผล)
-  }
-}
-function legacyFormPush(payload){
-  try{
-    let ifr=document.getElementById("orm_sink");
-    if(!ifr){
-      ifr=document.createElement("iframe");
-      ifr.name="orm_sink"; ifr.id="orm_sink"; ifr.style.display="none";
-      document.body.appendChild(ifr);
-    }
-    const form=document.createElement("form");
-    form.method="POST"; form.action=cfg.script; form.target="orm_sink"; form.style.display="none";
-    const ta=document.createElement("textarea"); ta.name="payload"; ta.value=payload;
-    form.appendChild(ta);
-    document.body.appendChild(form);
-    form.submit();
-    setTimeout(()=>{ try{form.remove();}catch(e){} },3000);
-    state.graceUntil=Date.now()+10000;
-    setStatus("ok","ส่งขึ้น Sheet แล้ว (โหมดสำรอง)");
-    toast("ส่งขึ้น Sheet โหมดสำรอง — อัปเดต .gs + deploy ใหม่เพื่อให้ยืนยันผลได้","warn");
-  }catch(e){
-    setStatus("err","บันทึกขึ้น Sheet ไม่ได้");
-    toast("บันทึกขึ้น Sheet ไม่ได้ — แต่เก็บในเครื่องแล้ว","err");
-  }
-}
-
-/* commit a local edit: store override, save, re-render, push */
-function commitEdit(){
-  saveOverrides(); render(); pushSnapshot();
+    await loadCases(); toast("บันทึกแล้ว ✓","ok");
+  }catch(e){await loadCases();toast(e.message||"บันทึกไม่สำเร็จ","err");}
+  finally{state.writeInFlight=false;}
 }
 
 /* ============================================================
@@ -690,10 +513,11 @@ function commitEdit(){
    ============================================================ */
 /* ---------- time helpers (HH:MM) ---------- */
 function nowHHMM(){
-  const d=new Date();
-  return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+  const p=bangkokParts({hour:"2-digit",minute:"2-digit",hourCycle:"h23"});
+  const get=t=>p.find(x=>x.type===t).value;
+  return get("hour")+":"+get("minute");
 }
-function nowMinutes(){ const d=new Date(); return d.getHours()*60+d.getMinutes(); }
+function nowMinutes(){ const t=nowHHMM().split(":"); return (+t[0])*60+(+t[1]); }
 function toMin(t){
   if(!t) return null;
   const m=String(t).match(/^(\d{1,2}):(\d{2})/); if(!m) return null;
@@ -929,43 +753,18 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,m=>({'&':'&amp;','
    ============================================================ */
 function requireUnlock(then){
   if(state.unlocked){ then(); return; }
-  state._afterUnlock=then;
-  $("pwInput").value=""; openModal("pwOverlay"); setTimeout(()=>$("pwInput").focus(),50);
+  if(!state.session){ signIn(); return; }
+  toast("บัญชีนี้ไม่มีสิทธิ์แก้ไข — โปรดให้ผู้ดูแลอนุมัติ","err");
 }
-/* [FIX #4] ตรวจรหัสผ่านที่ฝั่ง Apps Script (?action=auth) แล้วรับ write token มาแนบกับ
-   ทุกการเขียน — รหัส/token จริงอยู่ในสคริปต์ ไม่โชว์ใน view-source ของหน้านี้
-   (const PASSWORD ในไฟล์นี้เหลือไว้เป็น fallback เฉพาะกรณีสคริปต์เก่า/ออฟไลน์เท่านั้น) */
-async function doUnlock(){
-  const pw=$("pwInput").value, s=cfg.script;
-  let ok=false;
-  if(s){
-    try{
-      const r=await fetch(s+(s.includes("?")?"&":"?")+"action=auth&pw="+encodeURIComponent(pw)+"&_t="+Date.now());
-      const j=await r.json();
-      if(j && j.ok && j.token){ ok=true; state.writeToken=j.token; }
-      else if(j && j.ok===false){ toast("รหัสผ่านไม่ถูกต้อง","err"); return; }
-      else if(j && j.ok && !j.token){
-        // สคริปต์เวอร์ชันเก่า (ยังไม่มี action=auth) → เช็ครหัสในเครื่องแทน
-        if(pw!==PASSWORD){ toast("รหัสผ่านไม่ถูกต้อง","err"); return; }
-        ok=true; toast("สคริปต์เป็นเวอร์ชันเก่า — ควรวางโค้ด .gs ใหม่แล้ว deploy ใหม่","warn");
-      }
-    }catch(e){ /* ออฟไลน์/สคริปต์ล่ม → เช็คในเครื่องด้านล่าง */ }
-  }
-  if(!ok){
-    if(pw!==PASSWORD){ toast("รหัสผ่านไม่ถูกต้อง","err"); return; }
-    ok=true;
-  }
-  state.unlocked=true; $("lockBtn").textContent="🔓"; $("lockBtn").classList.add("active");
-  closeModal("pwOverlay"); toast("ปลดล็อกแล้ว — แก้ไขได้","ok");
-  render();
-  const f=state._afterUnlock; state._afterUnlock=null; if(f) f();
+function doUnlock(){
+  closeModal("pwOverlay"); signIn();
 }
 
 let _editing=null;
 function openCase(c){
   requireUnlock(()=>{
     _editing=Object.assign({},c);
-    state.editingId = c.patientName||c.hn ? caseId(c) : null; // null => new
+    state.editingId = caseId(c)||null; // only server-issued IDs identify existing cases
     // fill surgeon + room + dept selects
     fillSelect($("cRoom"), ["",...ROOMS], _editing.room||"", v=>v||"(ไม่ระบุห้อง)");
     fillSelect($("cSurg"), ["",...getSurgeons()], _editing.surgeon||"", v=>v||"(ไม่ระบุ)");
@@ -1043,24 +842,20 @@ function saveCase(){
     note:$("cNote").value.trim()
   };
   if(!c.patientName && !c.procedure){ toast("กรุณาใส่ชื่อผู้ป่วยหรือหัตถการ","err"); return; }
-  // [FIX #1] เคสใหม่ได้ id สุ่มถาวร (มีคอลัมน์ ID ใน Sheet แล้ว) — แก้ปัญหา id ชนกัน
-  // เมื่อผู้ป่วย+หัตถการซ้ำ และปัญหาแก้ชื่อ/HN แล้วกลายเป็นเคสใหม่ซ้ำซ้อน
-  c.id = state.editingId || genId();
-  // remove old override under previous id if id changed
-  if(state.editingId && state.editingId!==c.id) delete state.overrides[state.editingId];
-  // saving as "กำลังผ่า" auto-completes whatever was operating in that room
-  if(t==="current") finishCurrentInRoom(c.room, c.id);
-  state.overrides[c.id]=c;
+  c.caseId = state.editingId || newCaseId();
+  c.version = Number(_editing.version||0);
+  // Saving as current also completes the current case in the same room as one batch.
+  const changes=[];
+  if(t==="current") changes.push(...finishCurrentInRoom(c.room,c.caseId));
+  changes.push({operation:"upsert",case:c,expectedVersion:c.version,isNew:!state.editingId});
   closeModal("caseOverlay");
-  commitEdit();
-  toast("บันทึกเคสแล้ว","ok");
+  commitChanges(changes);
 }
 function deleteCase(){
   if(!state.editingId) return;
-  state.overrides[state.editingId]={__deleted:true,id:state.editingId};
+  if(!confirm("ลบเคสนี้ออกจากตาราง? การลบจะบันทึกในประวัติการเปลี่ยนแปลง")) return;
   closeModal("caseOverlay");
-  commitEdit();
-  toast("ลบเคสแล้ว","ok");
+  commitChanges([{operation:"delete",caseId:state.editingId,expectedVersion:Number(_editing.version||0)}]);
 }
 /* move a waiting case up/down, then renumber the whole room queue 1..n */
 function reorder(list, idx, dir){
@@ -1068,25 +863,20 @@ function reorder(list, idx, dir){
   if(j<0||j>=list.length) return;
   const arr=list.slice();
   const [moved]=arr.splice(idx,1); arr.splice(j,0,moved);
-  arr.forEach((c,k)=>{
-    const id=caseId(c);
-    state.overrides[id]=Object.assign({},c,{order:String(k+1),id});
-  });
-  commitEdit();
+  commitChanges(arr.map((c,k)=>({operation:"upsert",case:Object.assign({},c,{order:String(k+1)}),expectedVersion:Number(c.version||0)})));
 }
 /* mark any case still "current" in a room as done (auto-complete previous case) */
 function finishCurrentInRoom(room, exceptId){
-  if(!room) return false;
-  let finished=false;
+  if(!room) return [];
+  const changes=[];
   mergedCases().forEach(c=>{
     if(c.room===room && c.type==="current"){
       const id=caseId(c);
       if(id===exceptId) return;
-      state.overrides[id]=Object.assign({},c,{type:"done",id});
-      finished=true;
+      changes.push({operation:"upsert",case:Object.assign({},c,{type:"done"}),expectedVersion:Number(c.version||0)});
     }
   });
-  return finished;
+  return changes;
 }
 /* promote a waiting/floating case to CURRENT and start the real timer now.
    The case currently operating in that room is auto-set to "done". */
@@ -1099,19 +889,17 @@ function startCase(c){
     const dur=planMin(c);
     const nc=Object.assign({},c,{
       type:"current", startTime:st, endTime:fromMin(toMin(st)+dur),
-      durationMin:String(dur), id
+      durationMin:String(dur), caseId:id, version:Number(c.version||0)
     });
-    state.overrides[id]=nc;
-    commitEdit();
-    toast("เริ่มจับเวลา "+(room||"")+" แล้ว ▶"+(finished?" (เคสก่อนหน้า → เสร็จ)":""),"ok");
+    commitChanges(finished.concat([{operation:"upsert",case:nc,expectedVersion:nc.version}]));
+    toast("เริ่มจับเวลา "+(room||"")+" แล้ว ▶"+(finished.length?" (เคสก่อนหน้า → เสร็จ)":""),"ok");
   });
 }
 function undoDone(c){
   requireUnlock(()=>{
     const id=caseId(c);
-    const nc=Object.assign({},c,{type:"waiting",id});
-    state.overrides[id]=nc;
-    commitEdit();
+    const nc=Object.assign({},c,{type:"waiting",caseId:id});
+    commitChanges([{operation:"upsert",case:nc,expectedVersion:Number(c.version||0)}]);
     toast("นำเคสกลับเข้าคิวแล้ว","ok");
   });
 }
@@ -1153,7 +941,7 @@ function toggleFullscreen(){
 }
 function tickClock(){
   const d=new Date();
-  $("clock").textContent=d.toLocaleTimeString("th-TH",{hour12:false});
+  $("clock").textContent=d.toLocaleTimeString("th-TH",{hour12:false,timeZone:"Asia/Bangkok"});
 }
 
 /* ============================================================
@@ -1165,39 +953,35 @@ function closeModal(id){$(id).classList.remove("show");}
 /* ============================================================
    INIT / EVENTS
    ============================================================ */
-/* bump this when the baked-in DEFAULT_SCRIPT / DEFAULT_CSV change, to force every
-   device to drop a stale saved URL and adopt the new default once */
-const CFG_VERSION="2026-06-16a";
+/* Bump this when migrating saved browser state to a new monitor data model. */
+const CFG_VERSION="2026-08-15-supabase";
 function migrateConfig(){
   if(localStorage.getItem("orm_cfgver")!==CFG_VERSION){
-    // drop stale saved backend URLs so the new defaults take effect
-    localStorage.removeItem(LS.script);
-    localStorage.removeItem(LS.csv);
+    // Remove legacy Google Sheet settings and local case snapshots.
+    localStorage.removeItem("orm_csv");
+    localStorage.removeItem("orm_overrides");
+    localStorage.removeItem("orm_script");
+    localStorage.removeItem("orm_interval");
     localStorage.setItem("orm_cfgver",CFG_VERSION);
   }
 }
 
 function init(){
   migrateConfig();
-  loadOverrides();
   state.rotate=localStorage.getItem(LS.rotate)==="1";
   $("rotateBtn").classList.toggle("active",state.rotate);
 
   // header buttons
   $("lockBtn").onclick=()=>{
-    if(state.unlocked){state.unlocked=false;$("lockBtn").textContent="🔒";$("lockBtn").classList.remove("active");toast("ล็อกแล้ว","ok");render();}
-    else requireUnlock(()=>{});
+    if(state.session){ if(confirm("ออกจากระบบ Google บนเครื่องนี้?")) signOut(); }
+    else signIn();
   };
   $("rotateBtn").onclick=()=>setRotate(!state.rotate);
   $("fsBtn").onclick=toggleFullscreen;
-  $("setBtn").onclick=()=>requireUnlock(()=>{
-    $("setCsv").value=cfg.csv; $("setScript").value=cfg.script; $("setInterval").value=String(cfg.interval);
-    openModal("setOverlay");
-  });
+  $("setBtn").onclick=()=>openModal("setOverlay");
 
   // password
   $("pwSubmit").onclick=doUnlock;
-  $("pwInput").addEventListener("keydown",e=>{if(e.key==="Enter")doUnlock();});
 
   // case modal
   document.querySelectorAll("#typeSeg button").forEach(b=>b.onclick=()=>setType(b.dataset.type));
@@ -1213,36 +997,10 @@ function init(){
   // add a brand-new floating case
   $("addFloatBtn").onclick=()=>openCase({room:"",type:"floating",order:"",dept:""});
 
-  // settings
-  $("setSave").onclick=()=>{
-    const sc=$("setScript").value.trim();
-    if(sc && (sc.indexOf("googleusercontent.com")>-1 || sc.indexOf("/macros/echo")>-1)){
-      toast("URL เขียนต้องลงท้าย /exec (ไม่ใช่ลิงก์ echo) — ยังไม่บันทึก","err"); return;
-    }
-    cfg.csv=$("setCsv").value.trim(); cfg.script=sc;
-    cfg.interval=parseInt($("setInterval").value,10);
-    closeModal("setOverlay"); toast("บันทึกการตั้งค่าแล้ว","ok"); startPolling();
-  };
-  $("setTestWrite").onclick=()=>{
-    const u=(($("setScript").value.trim())||cfg.script);
-    if(!u){toast("ยังไม่มี Write URL","err");return;}
-    if(u.indexOf("/exec")<0){toast("URL ควรลงท้าย /exec","err");}
-    window.open(u,"_blank","noopener");
-    toast("เปิดแท็บใหม่ — ถ้าเห็น {\"ok\":true,...} แปลว่า deploy ถูกต้อง","ok");
-  };
-  $("setTest").onclick=async()=>{
-    const u=$("setCsv").value.trim(); if(!u){toast("ใส่ CSV URL ก่อน","err");return;}
-    try{const r=await fetch(u+(u.includes("?")?"&":"?")+"_t="+Date.now());
-      const txt=await r.text(); const n=rowsToCases(parseCSV(txt)).length;
-      toast("อ่านได้ "+n+" เคส ✓","ok");}
-    catch(e){toast("อ่านไม่ได้ — ตรวจ URL/การ Publish","err");}
-  };
-  $("newDayBtn").onclick=()=>{
-    if(confirm("ล้าง local edits ทั้งหมด และดึงข้อมูลจาก Google Sheet ใหม่?")){
-      state.overrides={}; saveOverrides(); state.graceUntil=0;
-      closeModal("setOverlay"); poll(); toast("เริ่มต้นวันใหม่แล้ว 🌅","ok");
-    }
-  };
+  // Supabase connection is deployed centrally, so no URL is stored per device.
+  $("setSave").onclick=()=>{closeModal("setOverlay");toast("เชื่อมต่อ Supabase ส่วนกลางแล้ว","ok");};
+  $("setTestWrite").onclick=loadCases;
+  $("setTest").onclick=loadCases;
   $("surgMgrBtn").onclick=()=>{renderSurgeons();openModal("surgOverlay");};
 
   // surgeon manager
@@ -1267,7 +1025,8 @@ function init(){
   setInterval(()=>{ if(!document.querySelector(".overlay.show")) render(); },30000);
   if(state.rotate) setRotate(true);
   render();
-  startPolling();
+  supabase.auth.onAuthStateChange((_event,session)=>{if(session&&!state.session)initAuth();});
+  initAuth();
 }
 window.addEventListener("DOMContentLoaded",init);
 </script>
