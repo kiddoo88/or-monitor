@@ -237,6 +237,7 @@
     <div id="authStatus" class="status auth-status warn" title="สถานะบัญชี Google"><span class="dot"></span><span id="authStatusText" aria-live="polite">Google: กำลังตรวจสอบ…</span></div>
     <div class="clock" id="clock">00:00:00</div>
     <button class="iconbtn" id="lockBtn" title="เข้าสู่ระบบ Google">👤</button>
+    <button class="iconbtn" id="importBtn" title="นำเข้าข้อมูลวันนี้จาก Google Sheet">📥</button>
     <button class="iconbtn" id="rotateBtn" title="สลับหน้าอัตโนมัติ">🔁</button>
     <button class="iconbtn" id="fsBtn" title="เต็มจอ">📺</button>
     <button class="iconbtn" id="setBtn" title="ตั้งค่า">⚙️</button>
@@ -357,6 +358,22 @@
     </div>
   </div>
 
+  <!-- Google Sheet import confirmation -->
+  <div class="overlay" id="importOverlay">
+    <div class="modal" style="max-width:460px">
+      <h3>📥 นำเข้าจาก Google Sheet</h3>
+      <div class="sub">ระบบจะอ่านแท็บรายวันจาก Google Sheet ตามเวลาไทย</div>
+      <div class="help">
+        <b>แท็บที่จะนำเข้า:</b> <code id="importDate">--</code><br>
+        <b style="color:#fca5a5">คำเตือน:</b> รายการเคสที่มีอยู่ทั้งหมดจะถูกแทนที่ด้วยข้อมูลจากชีตนี้
+      </div>
+      <div class="row-btns">
+        <button class="btn" onclick="closeModal('importOverlay')">ยกเลิก</button>
+        <button class="btn danger" id="importConfirm">นำเข้าและแทนที่เคสเดิม</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Surgeon manager modal -->
   <div class="overlay" id="surgOverlay">
     <div class="modal" style="max-width:440px">
@@ -382,6 +399,7 @@
 
 const SUPABASE_URL = "https://oatljeivibzjvwfzicjv.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_A1ePg7PEPgQVNhgKtff55Q_x3e2UZ8U";
+const SHEET_IMPORT_URL = "https://script.google.com/macros/s/AKfycbwsmiHOlMwIEk6RBhmIKWyh7sE5SMm2SHU7zhQRm-BXuXGx4BiNJiYjewVeNxZaPOg/exec";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
 const ROOMS = ["OR1","OR2","OR3","OR4","OR5","OR6","OR7"];
@@ -470,6 +488,39 @@ function toRow(c){return {
   end_time:c.endTime||"", duration_min:c.durationMin===""||c.durationMin==null?null:Number(c.durationMin), note:c.note||""
 };}
 function canEdit(){return !!(state.profile&&state.profile.is_active&&["editor","admin"].includes(state.profile.role));}
+function todaySheetName(){
+  const parts=Object.fromEntries(bangkokParts({day:"2-digit",month:"2-digit",year:"numeric"}).map(p=>[p.type,p.value]));
+  return `${parts.day}-${parts.month}-${parts.year}`;
+}
+function openSheetImport(){
+  if(!canEdit()){toast("บัญชีนี้ไม่มีสิทธิ์นำเข้าข้อมูล","err");return;}
+  $("importDate").textContent=todaySheetName();
+  openModal("importOverlay");
+}
+async function importTodayFromSheet(){
+  if(!canEdit()||!state.session) return;
+  const date=todaySheetName();
+  const button=$("importConfirm");
+  button.disabled=true; button.textContent="กำลังนำเข้า…";
+  setStatus("warn","กำลังนำเข้าจาก Google Sheet…");
+  try{
+    const body=new URLSearchParams({payload:JSON.stringify({action:"import",date,accessToken:state.session.access_token})});
+    const response=await fetch(SHEET_IMPORT_URL,{method:"POST",body});
+    const imported=await response.json();
+    if(!response.ok||!imported.ok) throw new Error(imported.error||"อ่านข้อมูลจาก Google Sheet ไม่สำเร็จ");
+    if(!Array.isArray(imported.cases)) throw new Error("รูปแบบข้อมูลใน Google Sheet ไม่ถูกต้อง");
+    const {data,error}=await sb.rpc("replace_or_cases_from_import",{p_cases:imported.cases.map(toRow)});
+    if(error) throw error;
+    closeModal("importOverlay");
+    await loadCases();
+    toast(`นำเข้า ${data||imported.cases.length} เคสจากแท็บ ${imported.sheet||date} แล้ว ✓`,"ok");
+  }catch(error){
+    setStatus("err","นำเข้าข้อมูลไม่สำเร็จ");
+    toast(error.message||"นำเข้าข้อมูลไม่สำเร็จ","err");
+  }finally{
+    button.disabled=false; button.textContent="นำเข้าและแทนที่เคสเดิม";
+  }
+}
 async function loadCases(){
   if(!state.session) return;
   setStatus("warn","กำลัง sync…");
@@ -1000,6 +1051,8 @@ function init(){
     if(state.session){ if(confirm("ออกจากระบบ Google บนเครื่องนี้?")) signOut(); }
     else signIn();
   };
+  $("importBtn").onclick=openSheetImport;
+  $("importConfirm").onclick=importTodayFromSheet;
   $("rotateBtn").onclick=()=>setRotate(!state.rotate);
   $("fsBtn").onclick=toggleFullscreen;
   $("setBtn").onclick=()=>openModal("setOverlay");
