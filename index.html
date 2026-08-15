@@ -379,7 +379,7 @@
 
 const SUPABASE_URL = "https://oatljeivibzjvwfzicjv.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_A1ePg7PEPgQVNhgKtff55Q_x3e2UZ8U";
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
 const ROOMS = ["OR1","OR2","OR3","OR4","OR5","OR6","OR7"];
 const ROOM_DEPT = {
@@ -465,23 +465,23 @@ function canEdit(){return !!(state.profile&&state.profile.is_active&&["editor","
 async function loadCases(){
   if(!state.session) return;
   setStatus("warn","กำลัง sync…");
-  const {data,error}=await supabase.from("or_cases").select("*").order("room").order("queue_order");
+  const {data,error}=await sb.from("or_cases").select("*").order("room").order("queue_order");
   if(error){setStatus("err",error.code==="42501"?"รอผู้ดูแลอนุมัติสิทธิ์":"sync ไม่ได้");render();return;}
   state.remote=(data||[]).map(fromRow); setStatus("ok","เชื่อมต่อแบบ Real-time แล้ว"); render();
 }
 function startRealtime(){
-  if(state.channel) supabase.removeChannel(state.channel);
-  state.channel=supabase.channel("or-cases-live").on("postgres_changes",{event:"*",schema:"public",table:"or_cases"},loadCases).subscribe();
+  if(state.channel) sb.removeChannel(state.channel);
+  state.channel=sb.channel("or-cases-live").on("postgres_changes",{event:"*",schema:"public",table:"or_cases"},loadCases).subscribe();
 }
 async function signIn(){
-  const {error}=await supabase.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin+window.location.pathname}});
+  const {error}=await sb.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin+window.location.pathname}});
   if(error) toast("เข้าสู่ระบบไม่ได้ — "+error.message,"err");
 }
-async function signOut(){await supabase.auth.signOut();location.reload();}
+async function signOut(){await sb.auth.signOut();location.reload();}
 async function initAuth(){
-  const {data:{session}}=await supabase.auth.getSession(); state.session=session;
+  const {data:{session}}=await sb.auth.getSession(); state.session=session;
   if(!session){setStatus("warn","กรุณาเข้าสู่ระบบ Google");render();return;}
-  const {data,error}=await supabase.from("profiles").select("role,is_active,full_name,email").single();
+  const {data,error}=await sb.from("profiles").select("role,is_active,full_name,email").single();
   if(error){setStatus("err","อ่านสิทธิ์ผู้ใช้ไม่ได้");return;}
   state.profile=data; state.unlocked=canEdit();
   $("lockBtn").textContent=state.unlocked?"🔓":"👤";
@@ -497,9 +497,9 @@ async function commitChanges(changes){
     for(const change of changes){
       const id=change.caseId||(change.case&&change.case.caseId);
       let result;
-      if(change.operation==="delete") result=await supabase.from("or_cases").delete().eq("id",id).eq("version",change.expectedVersion).select("id");
-      else if(id&&!change.isNew) result=await supabase.from("or_cases").update(toRow(change.case)).eq("id",id).eq("version",change.expectedVersion).select("id");
-      else result=await supabase.from("or_cases").insert(toRow(change.case)).select("id");
+      if(change.operation==="delete") result=await sb.from("or_cases").delete().eq("id",id).eq("version",change.expectedVersion).select("id");
+      else if(id&&!change.isNew) result=await sb.from("or_cases").update(toRow(change.case)).eq("id",id).eq("version",change.expectedVersion).select("id");
+      else result=await sb.from("or_cases").insert(toRow(change.case)).select("id");
       if(result.error) throw result.error;
       if(!result.data||!result.data.length) throw new Error("ข้อมูลถูกแก้ไขจากเครื่องอื่นแล้ว");
     }
@@ -1025,7 +1025,7 @@ function init(){
   setInterval(()=>{ if(!document.querySelector(".overlay.show")) render(); },30000);
   if(state.rotate) setRotate(true);
   render();
-  supabase.auth.onAuthStateChange((_event,session)=>{if(session&&!state.session)initAuth();});
+  sb.auth.onAuthStateChange((_event,session)=>{if(session&&!state.session)initAuth();});
   initAuth();
 }
 window.addEventListener("DOMContentLoaded",init);
