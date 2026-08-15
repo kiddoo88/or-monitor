@@ -34,6 +34,8 @@
   .status.ok .dot{background:var(--green);box-shadow:0 0 10px var(--green)}
   .status.warn .dot{background:var(--yellow);box-shadow:0 0 10px var(--yellow)}
   .status.err .dot{background:var(--red);box-shadow:0 0 10px var(--red)}
+  .auth-status{max-width:260px}
+  .auth-status span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .clock{font-variant-numeric:tabular-nums;font-weight:800;font-size:22px;
     background:var(--panel);border:1px solid var(--line);padding:6px 14px;border-radius:12px}
   .iconbtn{width:42px;height:42px;border-radius:12px;border:1px solid var(--line);
@@ -232,6 +234,7 @@
     </div>
     <div class="hspace"></div>
     <div id="status" class="status"><span class="dot"></span><span id="statusText">ยังไม่เชื่อมต่อ</span></div>
+    <div id="authStatus" class="status auth-status warn" title="สถานะบัญชี Google"><span class="dot"></span><span id="authStatusText" aria-live="polite">Google: กำลังตรวจสอบ…</span></div>
     <div class="clock" id="clock">00:00:00</div>
     <button class="iconbtn" id="lockBtn" title="เข้าสู่ระบบ Google">👤</button>
     <button class="iconbtn" id="rotateBtn" title="สลับหน้าอัตโนมัติ">🔁</button>
@@ -448,6 +451,11 @@ function mergedCases(){
 function setStatus(kind,text){
   const el=$("status"); el.className="status "+kind; $("statusText").textContent=text;
 }
+function setAuthStatus(kind,text,detail=""){
+  const el=$("authStatus"); el.className="status auth-status "+kind;
+  $("authStatusText").textContent=text;
+  el.title=detail||text;
+}
 function bangkokParts(options){return new Intl.DateTimeFormat("en-CA",Object.assign({timeZone:"Asia/Bangkok"},options)).formatToParts(new Date());}
 function fromRow(r){return {
   caseId:r.id, room:r.room||"", dept:r.dept||"", surgeon:r.surgeon||"", roomStatus:r.room_status||"",
@@ -474,16 +482,32 @@ function startRealtime(){
   state.channel=sb.channel("or-cases-live").on("postgres_changes",{event:"*",schema:"public",table:"or_cases"},loadCases).subscribe();
 }
 async function signIn(){
+  setAuthStatus("warn","Google: กำลังเปิดหน้าเข้าสู่ระบบ…");
   const {error}=await sb.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin+window.location.pathname}});
-  if(error) toast("เข้าสู่ระบบไม่ได้ — "+error.message,"err");
+  if(error){setAuthStatus("err","Google: เชื่อมต่อไม่สำเร็จ",error.message);toast("เข้าสู่ระบบไม่ได้ — "+error.message,"err");}
 }
 async function signOut(){await sb.auth.signOut();location.reload();}
 async function initAuth(){
+  const authParams=new URLSearchParams(location.search);
+  const authError=authParams.get("error_description")||authParams.get("error");
   const {data:{session}}=await sb.auth.getSession(); state.session=session;
-  if(!session){setStatus("warn","กรุณาเข้าสู่ระบบ Google");render();return;}
+  if(!session){
+    if(authError){
+      setAuthStatus("err","Google: เชื่อมต่อไม่สำเร็จ",authError);
+      setStatus("err","Google Login ไม่สำเร็จ");
+      toast("Google Login ไม่สำเร็จ — ลองใหม่อีกครั้ง","err");
+      history.replaceState({},document.title,location.pathname);
+    }else{
+      setAuthStatus("warn","Google: ยังไม่เข้าสู่ระบบ");
+      setStatus("warn","กรุณาเข้าสู่ระบบ Google");
+    }
+    render();return;
+  }
+  setAuthStatus("ok","Google: เชื่อมต่อแล้ว",session.user.email||"เชื่อมต่อแล้ว");
   const {data,error}=await sb.from("profiles").select("role,is_active,full_name,email").single();
   if(error){setStatus("err","อ่านสิทธิ์ผู้ใช้ไม่ได้");return;}
   state.profile=data; state.unlocked=canEdit();
+  setAuthStatus("ok",`Google: เชื่อมต่อแล้ว (${data.role})`,data.email||session.user.email||"");
   $("lockBtn").textContent=state.unlocked?"🔓":"👤";
   $("lockBtn").title=state.unlocked?"ออกจากระบบ":"บัญชีผู้ใช้ / เข้าสู่ระบบ";
   if(!data.is_active) toast("บัญชีนี้รอผู้ดูแลอนุมัติสิทธิ์","warn");
