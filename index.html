@@ -728,9 +728,9 @@ function render(){
       const d=document.createElement("div"); d.className="float-card";
       d.style.borderLeftColor=col;
       d.innerHTML=`${deptChip(caseDept(c))}
-        <div class="pn" style="margin-top:5px">${esc(c.patientName)||"(ไม่ระบุชื่อ)"}</div>
+        <div class="pn" style="margin-top:5px">${esc(c.procedure)||"(ไม่ระบุหัตถการ)"}</div>
+        <div class="pm">👤 ${esc(c.patientName)||"(ไม่ระบุชื่อ)"}</div>
         <div class="pm">HN ${esc(c.hn)||"-"} · ${esc(c.age)||"-"} ปี · ${esc(c.anesthesia)||"-"}</div>
-        <div class="pm">${esc(c.procedure)||""}</div>
         ${surgHTML(c)}
         ${noteHTML(c)}`;
       d.onclick=()=>openCase(c);
@@ -747,8 +747,8 @@ function render(){
     dg.innerHTML="";
     doneAll.forEach(c=>{
       const d=document.createElement("div"); d.className="done-card";
-      d.innerHTML=`<div class="info"><div class="pn">${esc(c.patientName)||"(ไม่ระบุ)"} · ${esc(c.room)||""}</div>
-        <div class="pm">${esc(c.procedure)||""} · ${esc(c.surgeon)||"-"}</div></div>`;
+      d.innerHTML=`<div class="info"><div class="pn">${esc(c.procedure)||"(ไม่ระบุหัตถการ)"} · ${esc(c.room)||""}</div>
+        <div class="pm">👤 ${esc(c.patientName)||"(ไม่ระบุ)"} · ${esc(c.surgeon)||"-"}</div></div>`;
       const u=document.createElement("button"); u.className="undo"; u.textContent="↩ Undo";
       u.onclick=(ev)=>{ev.stopPropagation();undoDone(c);};
       d.appendChild(u);
@@ -790,9 +790,9 @@ function roomCard(room,data){
     now.innerHTML=`<div class="tag"><span class="pulse"></span>กำลังผ่าตัด ${deptChip(caseDept(c))}</div>
       ${pi&&pi.alarm?`<div class="bell" title="เกินเวลาที่คาด > 1 ชม.">🔔</div>`:
         (c.startTime?`<div class="time">${esc(c.startTime)}${c.endTime?"–"+esc(c.endTime):""}</div>`:"")}
-      <div class="pname">${esc(c.patientName)||"(ไม่ระบุชื่อ)"}</div>
+      <div class="pname">${esc(c.procedure)||"(ไม่ระบุหัตถการ)"}</div>
+      <div class="proc">👤 ${esc(c.patientName)||"(ไม่ระบุชื่อ)"}</div>
       <div class="meta">HN ${esc(c.hn)||"-"} · ${esc(c.age)||"-"} ปี · ${esc(c.anesthesia)||"-"}</div>
-      <div class="proc">${esc(c.procedure)||""}</div>
       ${surgHTML(c)}
       ${progHTML}
       ${noteHTML(c)}`;
@@ -815,8 +815,8 @@ function roomCard(room,data){
       const it=document.createElement("div"); it.className="qitem";
       it.style.borderLeft="4px solid "+deptMeta(caseDept(c)).color;
       it.innerHTML=`<div class="qnum">${i+1}</div>
-        <div style="min-width:0;flex:1"><div class="pn">${esc(c.patientName)||"(ไม่ระบุ)"}</div>
-        <div class="pm">${esc(c.procedure)||""}</div>
+        <div style="min-width:0;flex:1"><div class="pn">${esc(c.procedure)||"(ไม่ระบุหัตถการ)"}</div>
+        <div class="pm">👤 ${esc(c.patientName)||"(ไม่ระบุ)"}</div>
         ${surgHTML(c)}
         ${noteHTML(c)}</div>
         <div class="right">${esc(c.anesthesia)||""}<br>${esc(c.startTime)||""}</div>`;
