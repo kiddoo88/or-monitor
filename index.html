@@ -211,6 +211,14 @@
     border-radius:10px;padding:8px 12px}
   .surg-row span{flex:1;font-weight:600}
   .surg-row button{background:transparent;border:none;color:var(--red);cursor:pointer;font-size:16px}
+  .user-list{display:flex;flex-direction:column;gap:9px;max-height:440px;overflow:auto}
+  .user-row{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:11px}
+  .user-email{font-size:13.5px;font-weight:800;word-break:break-all}
+  .user-meta{font-size:12px;color:var(--muted);margin-top:3px}
+  .user-controls{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;margin-top:10px}
+  .user-active{font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap;display:flex;gap:5px;align-items:center}
+  .user-controls .btn{padding:8px 11px;font-size:12px;min-width:72px}
+  @media(max-width:680px){.user-controls{grid-template-columns:1fr auto}.user-active{grid-column:1/-1}}
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
     background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:12px 20px;border-radius:12px;
     font-weight:700;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:80;box-shadow:0 10px 40px rgba(0,0,0,.5)}
@@ -355,6 +363,7 @@
         <b>🌅 ข้อมูลรายวัน</b> — เพิ่ม/ปิดเคสตามงานจริง โดยไม่ต้องย้ายหรือล้าง Sheet ทุกเช้า
       </div>
       <div style="margin-top:14px"><button class="btn" id="surgMgrBtn" style="width:100%">👨‍⚕️ จัดการรายชื่อแพทย์</button></div>
+      <div id="userMgrWrap" style="margin-top:9px;display:none"><button class="btn primary" id="userMgrBtn" style="width:100%">👥 จัดการสิทธิ์ผู้ใช้</button></div>
     </div>
   </div>
 
@@ -388,6 +397,16 @@
     </div>
   </div>
 
+  <!-- User permission manager (admins only) -->
+  <div class="overlay" id="userMgrOverlay">
+    <div class="modal wide">
+      <h3>👥 จัดการสิทธิ์ผู้ใช้</h3>
+      <div class="sub">ผู้ดูแลเปลี่ยนสิทธิ์บัญชีอื่นเป็น <code>viewer</code> หรือ <code>editor</code> ได้เท่านั้น โดยบัญชี <code>tuibomin@gmail.com</code> เท่านั้นที่แต่งตั้ง <code>admin</code> ได้</div>
+      <div class="user-list" id="userMgrList"></div>
+      <div class="row-btns"><button class="btn" onclick="closeModal('userMgrOverlay')">ปิด</button></div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -416,6 +435,7 @@ const DEPT_META = {
   "flexible":{label:"FLEXIBLE", color:"var(--flex)"}
 };
 const DEFAULT_SURGEONS = [];
+const MASTER_ADMIN_EMAIL = "tuibomin@gmail.com";
 
 const LS = {
   surgeons:"orm_surgeons", rotate:"orm_rotate"
@@ -434,7 +454,8 @@ let state = {
   pagesCount: 1,
   writeInFlight: false,
   editingId: null,
-  editingType: "current"
+  editingType: "current",
+  managedProfiles: []
 };
 
 /* ---------- helpers ---------- */
@@ -488,6 +509,11 @@ function toRow(c){return {
   end_time:c.endTime||"", duration_min:c.durationMin===""||c.durationMin==null?null:Number(c.durationMin), note:c.note||""
 };}
 function canEdit(){return !!(state.profile&&state.profile.is_active&&["editor","admin"].includes(state.profile.role));}
+function isAdmin(){return !!(state.profile&&state.profile.is_active&&state.profile.role==="admin");}
+function isMasterAdmin(){return isAdmin()&&String(state.session?.user?.email||"").toLowerCase()===MASTER_ADMIN_EMAIL;}
+function syncAdminControls(){
+  $("userMgrWrap").style.display=isAdmin()?"":"none";
+}
 function todaySheetName(){
   const parts=Object.fromEntries(bangkokParts({day:"2-digit",month:"2-digit",year:"numeric"}).map(p=>[p.type,p.value]));
   return `${parts.day}-${parts.month}-${parts.year}`;
@@ -564,6 +590,7 @@ async function initAuth(){
   const {data,error}=await sb.from("profiles").select("role,is_active,full_name,email").eq("id",session.user.id).maybeSingle();
   if(error||!data){setStatus("err","อ่านสิทธิ์ผู้ใช้ไม่ได้");return;}
   state.profile=data; state.unlocked=canEdit();
+  syncAdminControls();
   setAuthStatus("ok",`Google: ${data.email||session.user.email||"เชื่อมต่อแล้ว"} (${data.role})`,"คลิกปุ่มเปลี่ยนบัญชี Google เพื่อเลือกบัญชีอื่น");
   $("lockBtn").textContent="🔄";
   $("lockBtn").title="เปลี่ยนบัญชี Google";
@@ -1002,6 +1029,66 @@ function renderSurgeons(){
 }
 
 /* ============================================================
+   USER PERMISSIONS (admin-only UI, database-enforced rules)
+   ============================================================ */
+async function openUserManager(){
+  if(!isAdmin()){toast("เฉพาะผู้ดูแลเท่านั้นที่จัดการสิทธิ์ได้","err");return;}
+  const {data,error}=await sb.from("profiles").select("id,email,full_name,role,is_active,created_at").order("created_at",{ascending:false});
+  if(error){toast("โหลดรายชื่อผู้ใช้ไม่ได้ — "+error.message,"err");return;}
+  state.managedProfiles=data||[];
+  renderUserManager();
+  openModal("userMgrOverlay");
+}
+function renderUserManager(){
+  const list=$("userMgrList"); list.innerHTML="";
+  if(!state.managedProfiles.length){list.innerHTML='<div class="empty-msg">ยังไม่มีบัญชีที่เข้าสู่ระบบ</div>';return;}
+  state.managedProfiles.forEach(p=>{
+    const email=String(p.email||"").toLowerCase();
+    const isSelf=p.id===state.session?.user?.id;
+    const isMasterTarget=email===MASTER_ADMIN_EMAIL;
+    const locked=isSelf||(!isMasterAdmin()&&isMasterTarget);
+    const row=document.createElement("div"); row.className="user-row";
+    const title=document.createElement("div"); title.className="user-email"; title.textContent=p.email||"(ไม่ทราบอีเมล)";
+    const meta=document.createElement("div"); meta.className="user-meta";
+    meta.textContent=`${p.full_name||"ไม่มีชื่อ"} · ปัจจุบัน: ${p.role} · ${p.is_active?"ใช้งานแล้ว":"รออนุมัติ"}`;
+    row.appendChild(title); row.appendChild(meta);
+    const controls=document.createElement("div"); controls.className="user-controls";
+    const role=document.createElement("select");
+    if(!isMasterAdmin()&&p.role==="admin"){
+      const prompt=document.createElement("option"); prompt.value=""; prompt.disabled=true; prompt.selected=true;
+      prompt.textContent="admin — เลือกสิทธิ์ใหม่"; role.appendChild(prompt);
+    }
+    ["viewer","editor"].forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;if(p.role===v)o.selected=true;role.appendChild(o);});
+    if(isMasterAdmin()){
+      const admin=document.createElement("option"); admin.value="admin"; admin.textContent="admin"; if(p.role==="admin") admin.selected=true; role.appendChild(admin);
+    }
+    role.disabled=locked;
+    const activeLabel=document.createElement("label"); activeLabel.className="user-active";
+    const active=document.createElement("input"); active.type="checkbox"; active.checked=!!p.is_active; active.disabled=locked;
+    activeLabel.append(active,document.createTextNode("อนุญาตใช้งาน"));
+    const save=document.createElement("button"); save.className="btn primary"; save.textContent="บันทึก";
+    const canSave=()=>!locked&&!!role.value;
+    save.disabled=!canSave();
+    role.onchange=()=>{save.disabled=!canSave();};
+    save.onclick=()=>saveProfilePermission(p.id,role.value,active.checked);
+    controls.append(role,activeLabel,save); row.appendChild(controls);
+    if(locked){
+      const hint=document.createElement("div"); hint.className="user-meta";
+      hint.textContent=isSelf?"ไม่สามารถเปลี่ยนสิทธิ์ของบัญชีตนเองจากหน้านี้":"บัญชีหลักถูกป้องกันไว้";
+      row.appendChild(hint);
+    }
+    list.appendChild(row);
+  });
+}
+async function saveProfilePermission(profileId,role,isActive){
+  if(!role){toast("เลือกสิทธิ์ก่อนบันทึก","warn");return;}
+  const {error}=await sb.rpc("set_profile_permission",{p_profile_id:profileId,p_role:role,p_is_active:isActive});
+  if(error){toast("บันทึกสิทธิ์ไม่สำเร็จ — "+error.message,"err");return;}
+  toast("บันทึกสิทธิ์ผู้ใช้แล้ว","ok");
+  await openUserManager();
+}
+
+/* ============================================================
    ROTATE / FULLSCREEN / CLOCK
    ============================================================ */
 function setRotate(on){
@@ -1082,6 +1169,7 @@ function init(){
   $("setTestWrite").onclick=loadCases;
   $("setTest").onclick=loadCases;
   $("surgMgrBtn").onclick=()=>{renderSurgeons();openModal("surgOverlay");};
+  $("userMgrBtn").onclick=openUserManager;
 
   // surgeon manager
   $("addSurg").onclick=()=>{
